@@ -1,0 +1,2 @@
+addr = "localhost:31001"
+base = ["src"]
