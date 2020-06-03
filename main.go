@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/md5"
 	"crypto/sha1"
@@ -271,35 +272,31 @@ func FetchMessages(r io.Reader) (string, <-chan Message, error) {
 		defer close(queue)
 
 		var (
-			tmp  = bytes.NewReader(nil)
 			file []byte
 			raw  uint16
 		)
 
+		rs := bufio.NewReaderSize(r, 1<<15)
 		for {
-			n, err := r.Read(buf)
-			if err != nil || n == 0 {
-				return
+			m := Message{
+				Accu: make([]byte, length),
+				Curr: make([]byte, length),
 			}
-			tmp.Reset(buf[:n])
-			for tmp.Len() > 0 {
-				m := Message{
-					Accu: make([]byte, length),
-					Curr: make([]byte, length),
-				}
 
-				binary.Read(tmp, binary.BigEndian, &m.Size)
-				tmp.Read(m.Accu)
-				tmp.Read(m.Curr)
-
-				binary.Read(tmp, binary.BigEndian, &raw)
-				file = make([]byte, raw)
-				tmp.Read(file)
-				m.File = string(file)
-				fmt.Println(m.File, raw, tmp.Size(), tmp.Len())
-
-				queue <- m
+			if err := binary.Read(rs, binary.BigEndian, &m.Size); err != nil {
+				break
 			}
+			rs.Read(m.Accu)
+			rs.Read(m.Curr)
+
+			binary.Read(rs, binary.BigEndian, &raw)
+			file = make([]byte, raw)
+			if _, err := io.ReadFull(rs, file); err != nil {
+				break
+			}
+			m.File = string(file)
+
+			queue <- m
 		}
 	}()
 	return algo, queue, nil
