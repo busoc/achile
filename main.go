@@ -218,25 +218,25 @@ func handle(conn net.Conn, dirs []string) {
 		size  float64
 	)
 	for m := range queue {
-		var found bool
+		var z int64
 		for _, d := range dirs {
 			file := filepath.Join(d, m.File)
-			s, err := os.Stat(file)
-			if found = err == nil && s.Mode().IsRegular(); found {
-				m.File = file
+			if s, err := os.Stat(file); err == nil && s.Mode().IsRegular() {
+				m.File, z = file, s.Size()
 				break
 			}
 		}
-		if !found {
-			continue
+		if z != int64(m.Size) {
+			break
 		}
 
 		if err := m.Compute(io.MultiWriter(global, local)); err != nil {
-			return
+			break
 		}
 		if sum := local.Sum(nil); !bytes.Equal(sum, m.Curr) {
-			return
+			break
 		}
+
 		count++
 		size += m.Size
 		local.Reset()
@@ -251,7 +251,6 @@ func handle(conn net.Conn, dirs []string) {
 
 type Message struct {
 	Entry
-	Algo string
 	Accu []byte
 	Curr []byte
 }
