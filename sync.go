@@ -42,14 +42,15 @@ func runSync(cmd *cli.Command, args []string) error {
 		return err
 	}
 	var (
-		count uint64
-		size  float64
-		buf   bytes.Buffer
-		now   = time.Now()
+		count    uint64
+		size     float64
+		buf      bytes.Buffer
+		now      = time.Now()
+		local, _ = SelectHash(*algo)
+		digest   = io.MultiWriter(global, local)
 	)
-	local, _ := SelectHash(*algo)
 	for e := range queue {
-		if err := e.Compute(io.MultiWriter(global, local)); err != nil {
+		if err := e.Compute(digest); err != nil {
 			return err
 		}
 		if *verbose {

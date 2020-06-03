@@ -46,11 +46,12 @@ func handle(conn net.Conn, dirs []string) {
 	if err != nil {
 		return
 	}
-	global, _ := SelectHash(algo)
-	local, _ := SelectHash(algo)
 	var (
-		count uint64
-		size  float64
+		global, _ = SelectHash(algo)
+		local, _  = SelectHash(algo)
+		digest    = io.MultiWriter(global, local)
+		count     uint64
+		size      float64
 	)
 	for m := range queue {
 		var z int64
@@ -65,7 +66,7 @@ func handle(conn net.Conn, dirs []string) {
 			break
 		}
 
-		if err := m.Compute(io.MultiWriter(global, local)); err != nil {
+		if err := m.Compute(digest); err != nil {
 			break
 		}
 		if sum := local.Sum(nil); !bytes.Equal(sum, m.Curr) {
