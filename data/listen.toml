@@ -1,2 +1,2 @@
 addr = "localhost:31001"
-base = ["..", "."]
+base = ["..", ".", "tmp"]
