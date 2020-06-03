@@ -7,12 +7,13 @@ import (
 func main() {
 	commands := []*cli.Command{
 		{
-			Usage: "scan [-q] [-a] [-p] <base>",
+			Usage: "scan [-a algorithm] [-p pattern] [-w] [-v] <directory>",
 			Short: "",
+			Alias: []string{"walk"},
 			Run:   runScan,
 		},
 		{
-			Usage: "sync [-c] [-a] [-p] <remote> <base>",
+			Usage: "sync [-a algorithm] [-p pattern] <host:port> <directory>",
 			Short: "",
 			Run:   runSync,
 		},
