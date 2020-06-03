@@ -90,6 +90,7 @@ func runSync(cmd *cli.Command, args []string) error {
 	var (
 		pattern = cmd.Flag.String("p", "", "pattern")
 		algo    = cmd.Flag.String("a", "", "algorithm")
+		verbose = cmd.Flag.Bool("v", false, "verbose")
 		// copy    = cmd.Flag.Bool("c", false, "copy")
 	)
 	if err := cmd.Flag.Parse(args); err != nil {
@@ -122,6 +123,9 @@ func runSync(cmd *cli.Command, args []string) error {
 	for e := range queue {
 		if err := e.Compute(io.MultiWriter(global, local)); err != nil {
 			return err
+		}
+		if *verbose {
+			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(e.Size, false), local.Sum(nil), e.File)
 		}
 		file := strings.TrimPrefix(e.File, cmd.Flag.Arg(1))
 
@@ -213,23 +217,27 @@ func handle(conn net.Conn, dirs []string) {
 		size  float64
 	)
 	for m := range queue {
+		var found bool
 		for _, d := range dirs {
 			file := filepath.Join(d, m.File)
 			s, err := os.Stat(file)
-			if err != nil || !s.Mode().IsRegular() {
-				continue
+			if found = err == nil && s.Mode().IsRegular(); found {
+				m.File = file
+				break
 			}
-			m.File = file
-			if err := m.Compute(io.MultiWriter(global, local)); err != nil {
-				return
-			}
-			if sum := local.Sum(nil); !bytes.Equal(sum, m.Curr) {
-				return
-			}
-			count++
-			size += m.Size
-			break
 		}
+		if !found {
+			continue
+		}
+
+		if err := m.Compute(io.MultiWriter(global, local)); err != nil {
+			return
+		}
+		if sum := local.Sum(nil); !bytes.Equal(sum, m.Curr) {
+			return
+		}
+		count++
+		size += m.Size
 		local.Reset()
 	}
 	var buf bytes.Buffer
@@ -248,7 +256,7 @@ type Message struct {
 }
 
 func FetchMessages(r io.Reader) (string, <-chan Message, error) {
-	buf := make([]byte, 4096)
+	buf := make([]byte, 1<<14)
 	n, err := r.Read(buf)
 	if err != nil {
 		return "", nil, err
@@ -288,6 +296,7 @@ func FetchMessages(r io.Reader) (string, <-chan Message, error) {
 				file = make([]byte, raw)
 				tmp.Read(file)
 				m.File = string(file)
+				fmt.Println(m.File, raw, tmp.Size(), tmp.Len())
 
 				queue <- m
 			}
@@ -330,7 +339,7 @@ func walkFiles(base string) <-chan Entry {
 	go func() {
 		defer close(queue)
 		filepath.Walk(base, func(file string, i os.FileInfo, err error) error {
-			if err != nil || !i.Mode().IsRegular() {
+			if err != nil || !i.Mode().IsRegular() || i.Size() <= 0 {
 				return nil
 			}
 			queue <- Entry{
@@ -357,7 +366,7 @@ func globFiles(base, pattern string) (<-chan Entry, error) {
 				break
 			}
 			i, err := os.Stat(file)
-			if err == nil && i.Mode().IsRegular() {
+			if err == nil && i.Mode().IsRegular() && i.Size() > 0 {
 				queue <- Entry{
 					File: file,
 					Size: float64(i.Size()),
