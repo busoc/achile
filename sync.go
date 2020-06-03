@@ -42,8 +42,7 @@ func runSync(cmd *cli.Command, args []string) error {
 		return err
 	}
 	var (
-		count    uint64
-		size     float64
+		cz       Coze
 		buf      bytes.Buffer
 		now      = time.Now()
 		local, _ = SelectHash(*algo)
@@ -70,8 +69,7 @@ func runSync(cmd *cli.Command, args []string) error {
 			return err
 		}
 		local.Reset()
-		count++
-		size += e.Size
+		cz.Update(e.Size)
 	}
 	if c, ok := client.(*net.TCPConn); ok {
 		c.CloseWrite()
@@ -81,27 +79,23 @@ func runSync(cmd *cli.Command, args []string) error {
 	if _, err := client.Read(msg); err != nil {
 		return err
 	}
-	r := bytes.NewReader(msg)
-	length, _ := SizeHash(*algo)
 	var (
-		rcount uint64
-		rsize  float64
-		rsum   = make([]byte, length)
+		resp      = bytes.NewReader(msg)
+		length, _ = SizeHash(*algo)
+		rcz       Coze
+		rsum      = make([]byte, length)
 	)
-	binary.Read(r, binary.BigEndian, &rcount)
-	binary.Read(r, binary.BigEndian, &rsize)
-	if _, err := io.ReadFull(r, rsum); err != nil {
+	binary.Read(resp, binary.BigEndian, &rcz.Count)
+	binary.Read(resp, binary.BigEndian, &rcz.Size)
+	if _, err := io.ReadFull(resp, rsum); err != nil {
 		return err
 	}
-	if rcount != count {
-		return fmt.Errorf("files count mismatched (%d != %d)!", count, rcount)
-	}
-	if rsize != size {
-		return fmt.Errorf("files size mismatched (%s != %s)!", sizefmt.FormatIEC(size, false), sizefmt.FormatIEC(rsize, false))
+	if !cz.Equal(rcz) {
+		return fmt.Errorf("files count/sizes mismatched!")
 	}
 	if sum := global.Sum(nil); !bytes.Equal(sum, rsum) {
 		return fmt.Errorf("files checksum mismatched (%x != %x)!", sum, rsum)
 	}
-	fmt.Fprintf(os.Stdout, "%s - %d files %x (%s)\n", sizefmt.FormatIEC(size, false), count, global.Sum(nil), time.Since(now))
+	fmt.Fprintf(os.Stdout, "%s - %d files %x (%s)\n", sizefmt.FormatIEC(cz.Size, false), cz.Count, global.Sum(nil), time.Since(now))
 	return nil
 }

@@ -29,8 +29,7 @@ func runScan(cmd *cli.Command, args []string) error {
 		return err
 	}
 	var (
-		count    uint64
-		size     float64
+		cz       Coze
 		now      = time.Now()
 		local, _ = SelectHash(*algo)
 		digest   = io.MultiWriter(global, local)
@@ -43,11 +42,9 @@ func runScan(cmd *cli.Command, args []string) error {
 			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(e.Size, false), local.Sum(nil), e.File)
 		}
 		local.Reset()
-
-		count++
-		size += e.Size
+		cz.Update(e.Size)
 	}
 
-	fmt.Fprintf(os.Stdout, "%s - %d files %x (%s)\n", sizefmt.FormatIEC(size, false), count, global.Sum(nil), time.Since(now))
+	fmt.Fprintf(os.Stdout, "%s - %d files %x (%s)\n", sizefmt.FormatIEC(cz.Size, false), cz.Count, global.Sum(nil), time.Since(now))
 	return nil
 }

@@ -50,8 +50,7 @@ func handle(conn net.Conn, dirs []string) {
 		global, _ = SelectHash(algo)
 		local, _  = SelectHash(algo)
 		digest    = io.MultiWriter(global, local)
-		count     uint64
-		size      float64
+		cz        Coze
 	)
 	for m := range queue {
 		var z int64
@@ -73,13 +72,12 @@ func handle(conn net.Conn, dirs []string) {
 			break
 		}
 
-		count++
-		size += m.Size
+		cz.Update(m.Size)
 		local.Reset()
 	}
 	var buf bytes.Buffer
-	binary.Write(&buf, binary.BigEndian, count)
-	binary.Write(&buf, binary.BigEndian, size)
+	binary.Write(&buf, binary.BigEndian, cz.Count)
+	binary.Write(&buf, binary.BigEndian, cz.Size)
 	buf.Write(global.Sum(nil))
 
 	io.Copy(conn, &buf)

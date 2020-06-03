@@ -1,13 +1,27 @@
 package main
 
 import (
-  "os"
-  "io"
-  "fmt"
-  "path/filepath"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 
-  "github.com/midbel/glob"
+	"github.com/midbel/glob"
 )
+
+type Coze struct {
+	Count uint64
+	Size  float64
+}
+
+func (c *Coze) Equal(other Coze) bool {
+	return c.Count == other.Count && c.Size == other.Size
+}
+
+func (c *Coze) Update(z float64) {
+	c.Count++
+	c.Size += z
+}
 
 type Entry struct {
 	File string
