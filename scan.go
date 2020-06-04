@@ -32,6 +32,12 @@ func runScan(cmd *cli.Command, args []string) error {
 		}
 		writer = w
 		defer w.Close()
+
+		tmp := make([]byte, 16)
+		copy(tmp, *algo)
+		if _, err := writer.Write(tmp); err != nil {
+			return err
+		}
 	}
 
 	queue, err := FetchFiles(cmd.Flag.Arg(0), *pattern)

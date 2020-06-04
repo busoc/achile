@@ -13,6 +13,12 @@ func main() {
 			Run:   runScan,
 		},
 		{
+			Usage: "compare [-v] <list> <directory...>",
+			Short: "",
+			Alias: []string{"cmp"},
+			Run:   runCompare,
+		},
+		{
 			Usage: "sync [-a algorithm] [-p pattern] <host:port> <directory>",
 			Short: "",
 			Run:   runSync,
