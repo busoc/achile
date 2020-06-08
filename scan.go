@@ -70,13 +70,20 @@ func runScan(cmd *cli.Command, args []string) error {
 		raw := []byte(file)
 
 		binary.Write(ws, binary.BigEndian, e.Size)
-		binary.Write(ws, binary.BigEndian, cz.Size)
 		ws.Write(global.Sum(nil))
 		ws.Write(sum)
 		binary.Write(ws, binary.BigEndian, uint16(len(raw)))
 		ws.Write(raw)
 	}
+
+	sum := global.Sum(nil)
+
+	binary.Write(ws, binary.BigEndian, float64(0))
+	binary.Write(ws, binary.BigEndian, cz.Count)
+	binary.Write(ws, binary.BigEndian, cz.Size)
+	ws.Write(sum)
+
 	ws.Flush()
-	fmt.Fprintf(os.Stdout, "%s - %d files %x (%s)\n", sizefmt.FormatIEC(cz.Size, false), cz.Count, global.Sum(nil), time.Since(now))
+	fmt.Fprintf(os.Stdout, "%s - %d files %x (%s)\n", sizefmt.FormatIEC(cz.Size, false), cz.Count, sum, time.Since(now))
 	return nil
 }

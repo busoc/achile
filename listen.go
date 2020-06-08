@@ -119,8 +119,8 @@ func FetchMessages(r io.Reader) (string, <-chan Message, error) {
 			if err := binary.Read(rs, binary.BigEndian, &m.Size); err != nil {
 				break
 			}
-			rs.Read(m.Accu)
-			rs.Read(m.Curr)
+			io.ReadFull(rs, m.Accu)
+			io.ReadFull(rs, m.Curr)
 
 			binary.Read(rs, binary.BigEndian, &raw)
 			file = make([]byte, raw)

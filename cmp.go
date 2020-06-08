@@ -41,7 +41,7 @@ func runCompare(cmd *cli.Command, args []string) error {
 	}
 	var (
 		cz        Coze
-		rs        = bufio.NewReader(r)
+		rs        = bufio.NewReaderSize(r, 1<<15)
 		now       = time.Now()
 		length, _ = SizeHash(algo)
 		local, _  = SelectHash(algo)
@@ -50,7 +50,6 @@ func runCompare(cmd *cli.Command, args []string) error {
 	for {
 		f := struct {
 			Size  float64
-			Total float64
 			Accu  []byte
 			Curr  []byte
 			Raw   uint16
@@ -59,14 +58,12 @@ func runCompare(cmd *cli.Command, args []string) error {
 			Accu: make([]byte, length),
 			Curr: make([]byte, length),
 		}
-		if err := binary.Read(rs, binary.BigEndian, &f.Size); err != nil {
+		if err := binary.Read(rs, binary.BigEndian, &f.Size); err != nil || f.Size == 0 {
 			break
 		}
-		binary.Read(rs, binary.BigEndian, &f.Total)
-		rs.Read(f.Accu)
-		rs.Read(f.Curr)
+    io.ReadFull(rs, f.Accu)
+    io.ReadFull(rs, f.Curr)
 		binary.Read(rs, binary.BigEndian, &f.Raw)
-
 		file := make([]byte, f.Raw)
 		if _, err := io.ReadFull(rs, file); err != nil {
 			return err
@@ -78,13 +75,13 @@ func runCompare(cmd *cli.Command, args []string) error {
 			if s, err := os.Stat(file); err == nil && s.Mode().IsRegular() {
 				f.File, found = file, true
 				if f.Size != float64(s.Size()) {
-					return fmt.Errorf("%s: invalid size (%d != %d)", f.File, f.Size, s.Size())
+					return fmt.Errorf("%s: invalid size (%f != %d)", f.File, f.Size, s.Size())
 				}
 				break
 			}
 		}
 		if !found {
-			break
+      return fmt.Errorf("%s: file not found", f.File)
 		}
 		if err := computeDigest(f.File, digest); err != nil {
 			return err
