@@ -11,8 +11,8 @@ import (
 	"hash/fnv"
 	"strings"
 
-	"github.com/midbel/xxh"
 	"github.com/midbel/murmur"
+	"github.com/midbel/xxh"
 )
 
 const (

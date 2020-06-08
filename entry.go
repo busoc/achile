@@ -23,6 +23,40 @@ func (c *Coze) Update(z float64) {
 	c.Size += z
 }
 
+type FileInfo struct {
+	Size float64
+	Accu []byte
+	Curr []byte
+	Raw  uint16
+	File string
+}
+
+func FetchInfos(rs io.Reader, length int) <-chan FileInfo {
+	queue := make(chan FileInfo)
+	go func() {
+		defer close(queue)
+		for {
+			fi := FileInfo{
+				Accu: make([]byte, length),
+				Curr: make([]byte, length),
+			}
+			if err := binary.Read(rs, binary.BigEndian, &fi.Size); err != nil || fi.Size == 0 {
+				return
+			}
+			io.ReadFull(rs, fi.Accu)
+			io.ReadFull(rs, fi.Curr)
+			binary.Read(rs, binary.BigEndian, &fi.Raw)
+			file := make([]byte, fi.Raw)
+			if _, err := io.ReadFull(rs, file); err != nil {
+				return
+			}
+			fi.File = string(file)
+			queue <- fi
+		}
+	}()
+	return queue
+}
+
 type Entry struct {
 	File string
 	Size float64
