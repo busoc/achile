@@ -44,8 +44,6 @@ type Comparer struct {
 	local  hash.Hash
 	digest io.Writer
 
-	length int
-
 	inner *bufio.Reader
 	io.Closer
 }
@@ -69,7 +67,6 @@ func NewComparer(file string) (*Comparer, error) {
 		return nil, err
 	}
 	c.local, _ = SelectHash(alg)
-	c.length, _ = SizeHash(alg)
 
 	c.digest = io.MultiWriter(c.global, c.local)
 	c.inner = bufio.NewReader(r)
@@ -92,7 +89,7 @@ func (c *Comparer) Checksum() []byte {
 
 func (c *Comparer) compareFiles(dirs []string, verbose bool) (Coze, error) {
 	var cz Coze
-	for fi := range FetchInfos(c.inner, c.length) {
+	for fi := range FetchInfos(c.inner, c.global.Size()) {
 		var found bool
 		for _, d := range dirs {
 			file := filepath.Join(d, fi.File)
@@ -124,7 +121,7 @@ func (c *Comparer) compare(cz Coze) (Coze, error) {
 		return z, fmt.Errorf("final count/size mismatched!")
 	}
 
-	accu := make([]byte, c.length)
+	accu := make([]byte, c.global.Size())
 	if _, err := io.ReadFull(c.inner, accu); err != nil {
 		return cz, err
 	}
