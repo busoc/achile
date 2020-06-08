@@ -20,7 +20,7 @@ func runScan(cmd *cli.Command, args []string) error {
 		pattern = cmd.Flag.String("p", "", "pattern")
 		algo    = cmd.Flag.String("a", "", "algorithm")
 		list    = cmd.Flag.String("w", "", "file")
-		// verbose = cmd.Flag.Bool("v", false, "verbose")
+		verbose = cmd.Flag.Bool("v", false, "verbose")
 	)
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
@@ -32,7 +32,7 @@ func runScan(cmd *cli.Command, args []string) error {
 	defer scan.Close()
 
 	now := time.Now()
-	cz, err := scan.Scan(cmd.Flag.Arg(0), *pattern)
+	cz, err := scan.Scan(cmd.Flag.Arg(0), *pattern, *verbose)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (s *Scanner) Checksum() []byte {
 	return s.global.Sum(nil)
 }
 
-func (s *Scanner) Scan(base, pattern string) (Coze, error) {
+func (s *Scanner) Scan(base, pattern string, verbose bool) (Coze, error) {
 	var cz Coze
 	queue, err := FetchFiles(base, pattern)
 	if err != nil {
@@ -92,6 +92,9 @@ func (s *Scanner) Scan(base, pattern string) (Coze, error) {
 	for e := range queue {
 		if err := e.Compute(s.digest); err != nil {
 			return cz, err
+		}
+		if verbose {
+			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(e.Size, false), s.local.Sum(nil), e.File)
 		}
 		s.dumpCurrentState(e, base)
 		cz.Update(e.Size)

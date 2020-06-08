@@ -16,7 +16,7 @@ import (
 )
 
 func runCompare(cmd *cli.Command, args []string) error {
-	// verbose := cmd.Flag.Bool("v", false, "verbose")
+	verbose := cmd.Flag.Bool("v", false, "verbose")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func runCompare(cmd *cli.Command, args []string) error {
 	defer cmp.Close()
 
 	now := time.Now()
-	cz, err := cmp.Compare(dirs)
+	cz, err := cmp.Compare(dirs, *verbose)
 	if err != nil {
 		return err
 	}
@@ -78,8 +78,8 @@ func NewComparer(file string) (*Comparer, error) {
 	return &c, nil
 }
 
-func (c *Comparer) Compare(dirs []string) (Coze, error) {
-	cz, err := c.compareFiles(dirs)
+func (c *Comparer) Compare(dirs []string, verbose bool) (Coze, error) {
+	cz, err := c.compareFiles(dirs, verbose)
 	if err == nil {
 		cz, err = c.compare(cz)
 	}
@@ -90,7 +90,7 @@ func (c *Comparer) Checksum() []byte {
 	return c.global.Sum(nil)
 }
 
-func (c *Comparer) compareFiles(dirs []string) (Coze, error) {
+func (c *Comparer) compareFiles(dirs []string, verbose bool) (Coze, error) {
 	var cz Coze
 	for fi := range FetchInfos(c.inner, c.length) {
 		var found bool
@@ -103,6 +103,9 @@ func (c *Comparer) compareFiles(dirs []string) (Coze, error) {
 		}
 		if !found {
 			break
+		}
+		if verbose {
+			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(fi.Size, false), c.local.Sum(nil), fi.File)
 		}
 		if err := c.digestFile(fi); err != nil {
 			return cz, err
