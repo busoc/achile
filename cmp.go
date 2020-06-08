@@ -118,8 +118,6 @@ func (c *Comparer) compare(cz Coze) (Coze, error) {
 	binary.Read(c.inner, binary.BigEndian, &z.Count)
 	binary.Read(c.inner, binary.BigEndian, &z.Size)
 	if !cz.Equal(z) {
-		fmt.Printf("%+v\n", z)
-		fmt.Printf("%+v\n", cz)
 		return z, fmt.Errorf("final count/size mismatched!")
 	}
 
