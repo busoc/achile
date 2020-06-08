@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/midbel/xxh"
+	"github.com/midbel/murmur"
 )
 
 const (
@@ -58,6 +59,12 @@ func SelectHash(alg string) (hash.Hash, error) {
 		h = xxh.New32(0)
 	case "xxh64":
 		h = xxh.New64(0)
+	case "murmur32":
+		h = murmur.Murmur32x86v3(0)
+	case "murmur128x86":
+		h = murmur.Murmur128x86v3(0)
+	case "murmur128x64":
+		h = murmur.Murmur128x64v3(0)
 	}
 	return h, err
 }
