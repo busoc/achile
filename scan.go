@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
+	"hash"
 	"io"
 	"io/ioutil"
 	"os"
@@ -19,71 +20,111 @@ func runScan(cmd *cli.Command, args []string) error {
 		pattern = cmd.Flag.String("p", "", "pattern")
 		algo    = cmd.Flag.String("a", "", "algorithm")
 		list    = cmd.Flag.String("w", "", "file")
-		verbose = cmd.Flag.Bool("v", false, "verbose")
+		// verbose = cmd.Flag.Bool("v", false, "verbose")
 	)
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	writer := ioutil.Discard
-	if *list != "" {
-		w, err := os.Create(*list)
-		if err != nil {
-			return err
-		}
-		writer = w
-		defer w.Close()
-
-		tmp := make([]byte, 16)
-		copy(tmp, *algo)
-		if _, err := writer.Write(tmp); err != nil {
-			return err
-		}
-	}
-
-	queue, err := FetchFiles(cmd.Flag.Arg(0), *pattern)
+	scan, err := NewScanner(*algo, *list)
 	if err != nil {
 		return err
 	}
-	global, err := SelectHash(*algo)
+	defer scan.Close()
+
+	now := time.Now()
+	cz, err := scan.Scan(cmd.Flag.Arg(0), *pattern)
 	if err != nil {
 		return err
 	}
-	var (
-		cz       Coze
-		ws       = bufio.NewWriter(writer)
-		now      = time.Now()
-		local, _ = SelectHash(*algo)
-		digest   = io.MultiWriter(global, local)
-	)
-	for e := range queue {
-		if err := e.Compute(digest); err != nil {
-			return err
-		}
-		sum := local.Sum(nil)
-		if *verbose {
-			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(e.Size, false), sum, e.File)
-		}
-		local.Reset()
-		cz.Update(e.Size)
-
-		file := strings.TrimPrefix(e.File, cmd.Flag.Arg(0))
-		raw := []byte(file)
-
-		binary.Write(ws, binary.BigEndian, e.Size)
-		ws.Write(global.Sum(nil))
-		ws.Write(sum)
-		binary.Write(ws, binary.BigEndian, uint16(len(raw)))
-		ws.Write(raw)
-	}
-
-	sum := global.Sum(nil)
-
-	binary.Write(ws, binary.BigEndian, float64(0))
-	binary.Write(ws, binary.BigEndian, cz.Count)
-	binary.Write(ws, binary.BigEndian, cz.Size)
-	ws.Write(sum)
-
-	ws.Flush()
-	fmt.Fprintf(os.Stdout, "%s - %d files %x (%s)\n", sizefmt.FormatIEC(cz.Size, false), cz.Count, sum, time.Since(now))
+	fmt.Fprintf(os.Stdout, "%s - %d files %x (%s)\n", sizefmt.FormatIEC(cz.Size, false), cz.Count, scan.Checksum(), time.Since(now))
 	return nil
+}
+
+type Scanner struct {
+	closer io.Closer
+	inner  *bufio.Writer
+
+	global hash.Hash
+	local  hash.Hash
+	digest io.Writer
+}
+
+func NewScanner(alg, list string) (*Scanner, error) {
+	var (
+		s Scanner
+		w = ioutil.Discard
+	)
+	if list != "" {
+		f, err := os.Create(list)
+		if err != nil {
+			return nil, err
+		}
+		s.closer, w = f, f
+	}
+	s.inner = bufio.NewWriter(w)
+
+	var err error
+	if s.global, err = SelectHash(alg); err != nil {
+		return nil, err
+	}
+
+	s.local, _ = SelectHash(alg)
+	s.digest = io.MultiWriter(s.global, s.local)
+
+	buf := make([]byte, 16)
+	copy(buf, alg)
+	if _, err := s.inner.Write(buf); err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (s *Scanner) Checksum() []byte {
+	return s.global.Sum(nil)
+}
+
+func (s *Scanner) Scan(base, pattern string) (Coze, error) {
+	var cz Coze
+	queue, err := FetchFiles(base, pattern)
+	if err != nil {
+		return cz, err
+	}
+	for e := range queue {
+		if err := e.Compute(s.digest); err != nil {
+			return cz, err
+		}
+		s.dumpCurrentState(e, base)
+		cz.Update(e.Size)
+		s.local.Reset()
+	}
+	return cz, s.dumpFinalState(cz)
+}
+
+func (s *Scanner) Close() error {
+	var err error
+	if s.closer != nil {
+		err = s.closer.Close()
+	}
+	return err
+}
+
+func (s *Scanner) dumpFinalState(cz Coze) error {
+	binary.Write(s.inner, binary.BigEndian, float64(0))
+	binary.Write(s.inner, binary.BigEndian, cz.Count)
+	binary.Write(s.inner, binary.BigEndian, cz.Size)
+	s.inner.Write(s.global.Sum(nil))
+	return s.inner.Flush()
+}
+
+func (s *Scanner) dumpCurrentState(e Entry, base string) error {
+	var (
+		file = strings.TrimPrefix(e.File, base)
+		raw  = []byte(file)
+	)
+	binary.Write(s.inner, binary.BigEndian, e.Size)
+	s.inner.Write(s.global.Sum(nil))
+	s.inner.Write(s.local.Sum(nil))
+	binary.Write(s.inner, binary.BigEndian, uint16(len(raw)))
+	_, err := s.inner.Write(raw)
+	return err
 }
