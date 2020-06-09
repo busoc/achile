@@ -34,7 +34,7 @@ func runSync(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	global, err := SelectHash(*algo)
+	digest, err := NewDigest(*algo)
 	if err != nil {
 		return err
 	}
@@ -45,21 +45,19 @@ func runSync(cmd *cli.Command, args []string) error {
 		cz       Coze
 		buf      bytes.Buffer
 		now      = time.Now()
-		local, _ = SelectHash(*algo)
-		digest   = io.MultiWriter(global, local)
 	)
 	for e := range queue {
 		if err := e.Compute(digest); err != nil {
 			return err
 		}
 		if *verbose {
-			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(e.Size, false), local.Sum(nil), e.File)
+			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(e.Size, false), digest.Local(), e.File)
 		}
 		file := strings.TrimPrefix(e.File, cmd.Flag.Arg(1))
 
 		binary.Write(&buf, binary.BigEndian, e.Size)
-		buf.Write(global.Sum(nil))
-		buf.Write(local.Sum(nil))
+		buf.Write(digest.Global())
+		buf.Write(digest.Local())
 
 		raw := []byte(file)
 		binary.Write(&buf, binary.BigEndian, uint16(len(raw)))
@@ -68,7 +66,7 @@ func runSync(cmd *cli.Command, args []string) error {
 		if _, err := io.Copy(client, &buf); err != nil {
 			return err
 		}
-		local.Reset()
+		digest.Reset()
 		cz.Update(e.Size)
 	}
 	if c, ok := client.(*net.TCPConn); ok {
@@ -81,9 +79,8 @@ func runSync(cmd *cli.Command, args []string) error {
 	}
 	var (
 		resp      = bytes.NewReader(msg)
-		length, _ = SizeHash(*algo)
 		rcz       Coze
-		rsum      = make([]byte, length)
+		rsum      = make([]byte, digest.Size())
 	)
 	binary.Read(resp, binary.BigEndian, &rcz.Count)
 	binary.Read(resp, binary.BigEndian, &rcz.Size)
@@ -93,9 +90,9 @@ func runSync(cmd *cli.Command, args []string) error {
 	if !cz.Equal(rcz) {
 		return fmt.Errorf("files count/sizes mismatched!")
 	}
-	if sum := global.Sum(nil); !bytes.Equal(sum, rsum) {
+	if sum := digest.Global(); !bytes.Equal(sum, rsum) {
 		return fmt.Errorf("files checksum mismatched (%x != %x)!", sum, rsum)
 	}
-	fmt.Fprintf(os.Stdout, "%s - %d files %x (%s)\n", sizefmt.FormatIEC(cz.Size, false), cz.Count, global.Sum(nil), time.Since(now))
+	fmt.Fprintf(os.Stdout, "%s - %d files %x (%s)\n", sizefmt.FormatIEC(cz.Size, false), cz.Count, digest.Global(), time.Since(now))
 	return nil
 }
