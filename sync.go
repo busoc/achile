@@ -51,7 +51,7 @@ func runSync(cmd *cli.Command, args []string) error {
 			return err
 		}
 		if *verbose {
-			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(e.Size, false), digest.Local(), e.File)
+			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", formatSize(e.Size), digest.Local(), e.File)
 		}
 		file := strings.TrimPrefix(e.File, cmd.Flag.Arg(1))
 
