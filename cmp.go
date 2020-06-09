@@ -101,11 +101,11 @@ func (c *Comparer) compareFiles(dirs []string, verbose bool) (Coze, error) {
 		if !found {
 			break
 		}
-		if verbose {
-			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(fi.Size, false), c.local.Sum(nil), fi.File)
-		}
 		if err := c.digestFile(fi); err != nil {
 			return cz, err
+		}
+		if verbose {
+			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(fi.Size, false), c.local.Sum(nil), fi.File)
 		}
 		cz.Update(fi.Size)
 		c.local.Reset()
