@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"hash"
 	"io"
 	"os"
 	"path/filepath"
@@ -40,9 +39,7 @@ func runCompare(cmd *cli.Command, args []string) error {
 }
 
 type Comparer struct {
-	global hash.Hash
-	local  hash.Hash
-	digest io.Writer
+	digest *Digest
 
 	inner *bufio.Reader
 	io.Closer
@@ -63,12 +60,9 @@ func NewComparer(file string) (*Comparer, error) {
 	alg = string(bytes.Trim(buf, "\x00"))
 
 	var c Comparer
-	if c.global, err = SelectHash(alg); err != nil {
+	if c.digest, err = NewDigest(alg); err != nil {
 		return nil, err
 	}
-	c.local, _ = SelectHash(alg)
-
-	c.digest = io.MultiWriter(c.global, c.local)
 	c.inner = bufio.NewReader(r)
 	c.Closer = r
 
@@ -84,12 +78,12 @@ func (c *Comparer) Compare(dirs []string, verbose bool) (Coze, error) {
 }
 
 func (c *Comparer) Checksum() []byte {
-	return c.global.Sum(nil)
+	return c.digest.Global()
 }
 
 func (c *Comparer) compareFiles(dirs []string, verbose bool) (Coze, error) {
 	var cz Coze
-	for fi := range FetchInfos(c.inner, c.global.Size()) {
+	for fi := range FetchInfos(c.inner, c.digest.Size()) {
 		var found bool
 		for _, d := range dirs {
 			file := filepath.Join(d, fi.File)
@@ -105,10 +99,10 @@ func (c *Comparer) compareFiles(dirs []string, verbose bool) (Coze, error) {
 			return cz, err
 		}
 		if verbose {
-			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(fi.Size, false), c.local.Sum(nil), fi.File)
+			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(fi.Size, false), c.digest.Local(), fi.File)
 		}
 		cz.Update(fi.Size)
-		c.local.Reset()
+		c.digest.Reset()
 	}
 	return cz, nil
 }
@@ -121,11 +115,11 @@ func (c *Comparer) compare(cz Coze) (Coze, error) {
 		return z, fmt.Errorf("final count/size mismatched!")
 	}
 
-	accu := make([]byte, c.global.Size())
+	accu := make([]byte, c.digest.Size())
 	if _, err := io.ReadFull(c.inner, accu); err != nil {
 		return cz, err
 	}
-	if sum := c.global.Sum(nil); !bytes.Equal(sum, accu) {
+	if sum := c.digest.Global(); !bytes.Equal(sum, accu) {
 		return z, fmt.Errorf("final checksum mismatchde (%x != %x!)", sum, accu)
 	}
 	return z, nil
@@ -145,10 +139,10 @@ func (c *Comparer) digestFile(fi FileInfo) error {
 	if n != int64(fi.Size) {
 		return fmt.Errorf("%s: size mismatched (%f != %d)!", fi.Size, fi.Size, n)
 	}
-	if sum := c.local.Sum(nil); !bytes.Equal(fi.Curr, sum) {
+	if sum := c.digest.Local(); !bytes.Equal(fi.Curr, sum) {
 		return fmt.Errorf("%s: checksum mismatched (%x != %x)!", fi.File, fi.Curr, sum)
 	}
-	if sum := c.global.Sum(nil); !bytes.Equal(fi.Accu, sum) {
+	if sum := c.digest.Global(); !bytes.Equal(fi.Accu, sum) {
 		return fmt.Errorf("%s: checksum mismatched (%x != %x)!", fi.File, fi.Accu, sum)
 	}
 	return nil

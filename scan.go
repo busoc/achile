@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
-	"hash"
 	"io"
 	"io/ioutil"
 	"os"
@@ -44,9 +43,7 @@ type Scanner struct {
 	closer io.Closer
 	inner  *bufio.Writer
 
-	global hash.Hash
-	local  hash.Hash
-	digest io.Writer
+	digest *Digest
 }
 
 func NewScanner(alg, list string) (*Scanner, error) {
@@ -64,12 +61,10 @@ func NewScanner(alg, list string) (*Scanner, error) {
 	s.inner = bufio.NewWriter(w)
 
 	var err error
-	if s.global, err = SelectHash(alg); err != nil {
+	s.digest, err = NewDigest(alg)
+	if err != nil {
 		return nil, err
 	}
-
-	s.local, _ = SelectHash(alg)
-	s.digest = io.MultiWriter(s.global, s.local)
 
 	buf := make([]byte, 16)
 	copy(buf, alg)
@@ -80,7 +75,7 @@ func NewScanner(alg, list string) (*Scanner, error) {
 }
 
 func (s *Scanner) Checksum() []byte {
-	return s.global.Sum(nil)
+	return s.digest.Global()
 }
 
 func (s *Scanner) Scan(base, pattern string, verbose bool) (Coze, error) {
@@ -94,11 +89,11 @@ func (s *Scanner) Scan(base, pattern string, verbose bool) (Coze, error) {
 			return cz, err
 		}
 		if verbose {
-			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(e.Size, false), s.local.Sum(nil), e.File)
+			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(e.Size, false), s.digest.Local(), e.File)
 		}
 		s.dumpCurrentState(e, base)
 		cz.Update(e.Size)
-		s.local.Reset()
+		s.digest.Reset()
 	}
 	return cz, s.dumpFinalState(cz)
 }
@@ -115,7 +110,7 @@ func (s *Scanner) dumpFinalState(cz Coze) error {
 	binary.Write(s.inner, binary.BigEndian, float64(0))
 	binary.Write(s.inner, binary.BigEndian, cz.Count)
 	binary.Write(s.inner, binary.BigEndian, cz.Size)
-	s.inner.Write(s.global.Sum(nil))
+	s.inner.Write(s.digest.Global())
 	return s.inner.Flush()
 }
 
@@ -125,8 +120,8 @@ func (s *Scanner) dumpCurrentState(e Entry, base string) error {
 		raw  = []byte(file)
 	)
 	binary.Write(s.inner, binary.BigEndian, e.Size)
-	s.inner.Write(s.global.Sum(nil))
-	s.inner.Write(s.local.Sum(nil))
+	s.inner.Write(s.digest.Global())
+	s.inner.Write(s.digest.Local())
 	binary.Write(s.inner, binary.BigEndian, uint16(len(raw)))
 	_, err := s.inner.Write(raw)
 	return err
