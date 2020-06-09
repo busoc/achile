@@ -7,11 +7,11 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"net"
 	"strings"
 	"time"
 
 	"github.com/midbel/cli"
-	"github.com/midbel/sizefmt"
 )
 
 func runScan(cmd *cli.Command, args []string) error {
@@ -35,7 +35,7 @@ func runScan(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stdout, "%s - %d files %x (%s)\n", sizefmt.FormatIEC(cz.Size, false), cz.Count, scan.Checksum(), time.Since(now))
+	fmt.Printf("%s - %d files %x (%s)\n", formatSize(cz.Size), cz.Count, scan.Checksum(), time.Since(now))
 	return nil
 }
 
@@ -61,8 +61,7 @@ func NewScanner(alg, list string) (*Scanner, error) {
 	s.inner = bufio.NewWriter(w)
 
 	var err error
-	s.digest, err = NewDigest(alg)
-	if err != nil {
+	if s.digest, err = NewDigest(alg); err != nil {
 		return nil, err
 	}
 
@@ -78,24 +77,26 @@ func (s *Scanner) Checksum() []byte {
 	return s.digest.Global()
 }
 
+// func (s *Scanner) Synchronize(conn net.Conn, base, pattern string) (Coze, error) {
+// 	return s.scanDirectory(base, pattern, func(e Entry) error {
+// 		return nil
+// 	})
+// }
+
 func (s *Scanner) Scan(base, pattern string, verbose bool) (Coze, error) {
-	var cz Coze
-	queue, err := FetchFiles(base, pattern)
-	if err != nil {
-		return cz, err
-	}
-	for e := range queue {
+	cz, err := s.scanDirectory(base, pattern, func(e Entry) error {
 		if err := e.Compute(s.digest); err != nil {
-			return cz, err
+			return err
 		}
 		if verbose {
-			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(e.Size, false), s.digest.Local(), e.File)
+			s.dumpEntry(e)
 		}
-		s.dumpCurrentState(e, base)
-		cz.Update(e.Size)
-		s.digest.Reset()
+		return s.dumpCurrentState(e, base)
+	})
+	if err == nil {
+		err = s.dumpFinalState(cz)
 	}
-	return cz, s.dumpFinalState(cz)
+	return cz, err
 }
 
 func (s *Scanner) Close() error {
@@ -104,6 +105,26 @@ func (s *Scanner) Close() error {
 		err = s.closer.Close()
 	}
 	return err
+}
+
+func (s *Scanner) scanDirectory(base, pattern string, fn func(e Entry) error) (Coze, error) {
+	var cz Coze
+	queue, err := FetchFiles(base, pattern)
+	if err != nil {
+		return cz, err
+	}
+	for e := range queue {
+		if err := fn(e); err != nil {
+			return cz, err
+		}
+		cz.Update(e.Size)
+		s.digest.Reset()
+	}
+	return cz, nil
+}
+
+func (s *Scanner) dumpEntry(e Entry) {
+	fmt.Printf("%-8s  %x  %s\n", formatSize(e.Size), s.digest.Local(), e.File)
 }
 
 func (s *Scanner) dumpFinalState(cz Coze) error {

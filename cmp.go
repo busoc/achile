@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/midbel/cli"
-	"github.com/midbel/sizefmt"
 )
 
 func runCompare(cmd *cli.Command, args []string) error {
@@ -34,7 +33,7 @@ func runCompare(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stdout, "%s - %d files %x (%s)\n", sizefmt.FormatIEC(cz.Size, false), cz.Count, cmp.Checksum(), time.Since(now))
+	fmt.Printf("%s - %d files %x (%s)\n", formatSize(cz.Size), cz.Count, cmp.Checksum(), time.Since(now))
 	return nil
 }
 
@@ -83,15 +82,8 @@ func (c *Comparer) Checksum() []byte {
 
 func (c *Comparer) compareFiles(dirs []string, verbose bool) (Coze, error) {
 	var cz Coze
-	for fi := range FetchInfos(c.inner, c.digest.Size()) {
-		var found bool
-		for _, d := range dirs {
-			file := filepath.Join(d, fi.File)
-			if s, err := os.Stat(file); err == nil && s.Mode().IsRegular() {
-				fi.File, found = file, true
-				break
-			}
-		}
+	for i := range FetchInfos(c.inner, c.digest.Size()) {
+		fi, found := c.lookupFile(i, dirs)
 		if !found {
 			break
 		}
@@ -99,7 +91,7 @@ func (c *Comparer) compareFiles(dirs []string, verbose bool) (Coze, error) {
 			return cz, err
 		}
 		if verbose {
-			fmt.Fprintf(os.Stdout, "%-8s  %x  %s\n", sizefmt.FormatIEC(fi.Size, false), c.digest.Local(), fi.File)
+			fmt.Printf("%-8s  %x  %s\n", formatSize(fi.Size), c.digest.Local(), fi.File)
 		}
 		cz.Update(fi.Size)
 		c.digest.Reset()
@@ -123,6 +115,18 @@ func (c *Comparer) compare(cz Coze) (Coze, error) {
 		return z, fmt.Errorf("final checksum mismatchde (%x != %x!)", sum, accu)
 	}
 	return z, nil
+}
+
+func (c *Comparer) lookupFile(fi FileInfo, dirs []string) (FileInfo, bool) {
+	var found bool
+	for _, d := range dirs {
+		file := filepath.Join(d, fi.File)
+		if s, err := os.Stat(file); err == nil && s.Mode().IsRegular() {
+			fi.File, found = file, true
+			break
+		}
+	}
+	return fi, found
 }
 
 func (c *Comparer) digestFile(fi FileInfo) error {
