@@ -1,5 +1,5 @@
 addr = "localhost:31001"
-base = ["..", ".", "tmp"]
+base = "src"
 
 # [certificate]
 # pem = ""

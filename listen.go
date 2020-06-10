@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -19,8 +21,8 @@ func runListen(cmd *cli.Command, args []string) error {
 	}
 	cfg := struct {
 		Addr    string
-		Clients uint16   `toml:"client"`
-		Bases   []string `toml:"base"`
+		Base    string
+		Clients uint16 `toml:"client"`
 	}{}
 	if err := toml.DecodeFile(cmd.Flag.Arg(0), &cfg); err != nil {
 		return err
@@ -35,102 +37,109 @@ func runListen(cmd *cli.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		go handle(c, cfg.Bases)
+		go handle(c, cfg.Base)
 	}
 	return nil
 }
 
-func handle(conn net.Conn, dirs []string) {
+func handle(conn net.Conn, base string) {
 	defer conn.Close()
-	algo, queue, err := FetchMessages(conn)
+
+	buf := make([]byte, 16)
+	n, err := io.ReadFull(conn, buf)
 	if err != nil {
 		return
 	}
-	var (
-		global, _ = SelectHash(algo)
-		local, _  = SelectHash(algo)
-		digest    = io.MultiWriter(global, local)
-		cz        Coze
-	)
-	for m := range queue {
-		var z int64
-		for _, d := range dirs {
-			file := filepath.Join(d, m.File)
-			if s, err := os.Stat(file); err == nil && s.Mode().IsRegular() {
-				m.File, z = file, s.Size()
-				break
-			}
-		}
-		if z != int64(m.Size) {
-			break
-		}
-
-		if err := m.Compute(digest); err != nil {
-			break
-		}
-		if sum := local.Sum(nil); !bytes.Equal(sum, m.Curr) {
-			break
-		}
-
-		cz.Update(m.Size)
-		local.Reset()
+	digest, err := NewDigest(string(bytes.Trim(buf[:n], "\x00")))
+	if err1 := reply(conn, err); err != nil || err1 != nil {
+		return
 	}
+
+	rs := bufio.NewReader(conn)
+	for {
+		req, err := rs.ReadByte()
+		if err != nil {
+			return
+		}
+		switch req {
+		case ReqCheck:
+			err = handleCheck(rs, base, digest)
+		case ReqCopy:
+			err = handleCopy(rs, base, digest)
+		case ReqCmp:
+			err = handleCompare(rs, digest)
+		default:
+			return
+		}
+		if err := reply(conn, err); err != nil {
+			return
+		}
+	}
+}
+
+func reply(w io.Writer, err error) error {
 	var buf bytes.Buffer
-	binary.Write(&buf, binary.BigEndian, cz.Count)
-	binary.Write(&buf, binary.BigEndian, cz.Size)
-	buf.Write(global.Sum(nil))
-
-	io.Copy(conn, &buf)
+	switch e := errors.Unwrap(err); e {
+	case nil:
+		binary.Write(&buf, binary.BigEndian, CodeOk)
+	case ErrSize:
+		binary.Write(&buf, binary.BigEndian, CodeSize)
+	case ErrSum:
+		binary.Write(&buf, binary.BigEndian, CodeDigest)
+	case ErrFile:
+		binary.Write(&buf, binary.BigEndian, CodeNoent)
+	default:
+		binary.Write(&buf, binary.BigEndian, CodeUnexpected)
+	}
+	if err != nil {
+		io.WriteString(&buf, err.Error())
+	}
+	_, err = io.Copy(w, &buf)
+	return err
 }
 
-type Message struct {
-	Entry
-	Accu []byte
-	Curr []byte
+func handleCheck(rs io.Reader, base string, digest *Digest) error {
+	dat := struct {
+		Size float64
+		Sum  []byte
+		Raw  uint16
+		File []byte
+	}{}
+
+	binary.Read(rs, binary.BigEndian, &dat.Size)
+	dat.Sum = make([]byte, digest.Size())
+	if _, err := io.ReadFull(rs, dat.Sum); err != nil {
+		return err
+	}
+	binary.Read(rs, binary.BigEndian, &dat.Raw)
+	dat.File = make([]byte, dat.Raw)
+	if _, err := io.ReadFull(rs, dat.File); err != nil {
+		return err
+	}
+
+	r, err := os.Open(filepath.Join(base, string(dat.File)))
+	if err != nil {
+		return ErrFile
+	}
+	defer r.Close()
+
+	n, err := io.Copy(digest, r)
+	if err != nil {
+		return err
+	}
+	if n != int64(dat.Size) {
+		return ErrSize
+	}
+	if !bytes.Equal(dat.Sum, digest.Local()) {
+		return ErrSum
+	}
+	return nil
 }
 
-func FetchMessages(r io.Reader) (string, <-chan Message, error) {
-	buf := make([]byte, 1<<14)
-	n, err := r.Read(buf)
-	if err != nil {
-		return "", nil, err
-	}
-	algo := string(buf[:n])
-	length, err := SizeHash(algo)
-	if err != nil {
-		return "", nil, err
-	}
-	queue := make(chan Message)
-	go func() {
-		defer close(queue)
+func handleCopy(rs io.Reader, base string, digest *Digest) error {
+	return nil
+}
 
-		var (
-			file []byte
-			raw  uint16
-		)
-
-		rs := bufio.NewReaderSize(r, 1<<15)
-		for {
-			m := Message{
-				Accu: make([]byte, length),
-				Curr: make([]byte, length),
-			}
-
-			if err := binary.Read(rs, binary.BigEndian, &m.Size); err != nil {
-				break
-			}
-			io.ReadFull(rs, m.Accu)
-			io.ReadFull(rs, m.Curr)
-
-			binary.Read(rs, binary.BigEndian, &raw)
-			file = make([]byte, raw)
-			if _, err := io.ReadFull(rs, file); err != nil {
-				break
-			}
-			m.File = string(file)
-
-			queue <- m
-		}
-	}()
-	return algo, queue, nil
+func handleCompare(rs io.Reader, digest *Digest) error {
+	return nil
 }

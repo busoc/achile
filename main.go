@@ -24,6 +24,11 @@ func main() {
 			Run:   runSync,
 		},
 		{
+			Usage: "transfer <host:port> <directory...>",
+			Short: "",
+			Run:   runTransfer,
+		},
+		{
 			Usage: "listen <config>",
 			Short: "",
 			Run:   runListen,
