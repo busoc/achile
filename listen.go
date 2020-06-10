@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -22,6 +23,10 @@ func runListen(cmd *cli.Command, args []string) error {
 		Addr    string
 		Base    string
 		Clients uint16 `toml:"client"`
+		Certificate struct{
+			Pem string
+			Key string
+		}
 	}{}
 	if err := toml.DecodeFile(cmd.Flag.Arg(0), &cfg); err != nil {
 		return err
@@ -30,56 +35,126 @@ func runListen(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if cfg.Certificate.Pem != "" {
+
+	}
 	defer s.Close()
 	for {
 		c, err := s.Accept()
 		if err != nil {
 			return err
 		}
-		go handle(c, cfg.Base)
+		h, err := NewHandler(c, cfg.Base)
+		if err == nil {
+			go h.Handle()
+		}
 	}
 	return nil
 }
 
-func handle(conn net.Conn, base string) {
-	defer conn.Close()
+type Handler struct {
+	conn   net.Conn
+	digest *Digest
+	base   string
+	cz     Coze
+}
 
-	buf := make([]byte, 16)
-	n, err := io.ReadFull(conn, buf)
-	if err != nil {
-		return
+func NewHandler(conn net.Conn, base string) (*Handler, error) {
+	h := Handler{
+		conn: conn,
+		base: base,
 	}
-	digest, err := NewDigest(string(bytes.Trim(buf[:n], "\x00")))
-	if err1 := reply(conn, err); err != nil || err1 != nil {
-		return
-	}
+	return &h, h.init()
+}
 
-	var (
-		rs = bufio.NewReader(conn)
-		cz Coze
-	)
+func (h *Handler) Handle() {
+	defer h.conn.Close()
+
+	rs := bufio.NewReader(h.conn)
 	for {
 		req, err := rs.ReadByte()
 		if err != nil {
 			return
 		}
+		var size float64
 		switch req {
 		case ReqCheck:
-			err = handleCheck(rs, base, digest)
+			size, err = h.handleCheck(rs)
 		case ReqCopy:
-			err = handleCopy(rs, base, digest)
+			size, err = h.handleCopy(rs)
 		case ReqCmp:
-			err = handleCompare(rs, cz, digest)
+			err = h.handleCompare(rs)
 		default:
-			return
+			err = fmt.Errorf("unsupported request")
 		}
-		if err := reply(conn, err); err != nil {
+		h.cz.Update(size)
+		if err := h.reply(err); err != nil {
 			return
 		}
 	}
 }
 
-func reply(w io.Writer, err error) error {
+func (h *Handler) handleCheck(rs io.Reader) (float64, error) {
+	dat := struct {
+		Size float64
+		Sum  []byte
+		Raw  uint16
+		File []byte
+	}{}
+
+	binary.Read(rs, binary.BigEndian, &dat.Size)
+	dat.Sum = make([]byte, h.digest.Size())
+	if _, err := io.ReadFull(rs, dat.Sum); err != nil {
+		return 0, err
+	}
+	binary.Read(rs, binary.BigEndian, &dat.Raw)
+	dat.File = make([]byte, dat.Raw)
+	if _, err := io.ReadFull(rs, dat.File); err != nil {
+		return 0, err
+	}
+
+	r, err := os.Open(filepath.Join(h.base, string(dat.File)))
+	if err != nil {
+		return 0, ErrFile
+	}
+	defer r.Close()
+
+	n, err := io.Copy(h.digest, r)
+	if err != nil {
+		return 0, err
+	}
+	if n != int64(dat.Size) {
+		return 0, ErrSize
+	}
+	if !bytes.Equal(dat.Sum, h.digest.Local()) {
+		return 0, ErrSum
+	}
+	return dat.Size, nil
+}
+
+func (h *Handler) handleCopy(rs io.Reader) (float64, error) {
+	return 0, nil
+}
+
+func (h *Handler) handleCompare(rs io.Reader) error {
+	var z Coze
+	binary.Read(rs, binary.BigEndian, z.Count)
+	binary.Read(rs, binary.BigEndian, z.Size)
+	sum := make([]byte, h.digest.Size())
+	if _, err := io.ReadFull(rs, sum); err != nil {
+		return err
+	}
+
+	if !h.cz.Equal(z) {
+		return ErrMismatch
+	}
+	if !bytes.Equal(sum, h.digest.Global()) {
+		return ErrSum
+	}
+	return nil
+}
+
+func (h *Handler) reply(err error) error {
 	var buf bytes.Buffer
 	switch e := errors.Unwrap(err); e {
 	case nil:
@@ -96,52 +171,22 @@ func reply(w io.Writer, err error) error {
 	if err != nil {
 		io.WriteString(&buf, err.Error())
 	}
-	_, err = io.Copy(w, &buf)
+	_, err = io.Copy(h.conn, &buf)
 	return err
 }
 
-func handleCheck(rs io.Reader, base string, digest *Digest) error {
-	dat := struct {
-		Size float64
-		Sum  []byte
-		Raw  uint16
-		File []byte
-	}{}
-
-	binary.Read(rs, binary.BigEndian, &dat.Size)
-	dat.Sum = make([]byte, digest.Size())
-	if _, err := io.ReadFull(rs, dat.Sum); err != nil {
-		return err
-	}
-	binary.Read(rs, binary.BigEndian, &dat.Raw)
-	dat.File = make([]byte, dat.Raw)
-	if _, err := io.ReadFull(rs, dat.File); err != nil {
-		return err
-	}
-
-	r, err := os.Open(filepath.Join(base, string(dat.File)))
-	if err != nil {
-		return ErrFile
-	}
-	defer r.Close()
-
-	n, err := io.Copy(digest, r)
+func (h *Handler) init() error {
+	buf := make([]byte, 16)
+	n, err := io.ReadFull(h.conn, buf)
 	if err != nil {
 		return err
 	}
-	if n != int64(dat.Size) {
-		return ErrSize
+	h.digest, err = NewDigest(string(bytes.Trim(buf[:n], "\x00")))
+	if err1 := h.reply(err); err != nil || err1 != nil {
+		if err == nil {
+			err = err1
+		}
+		return err
 	}
-	if !bytes.Equal(dat.Sum, digest.Local()) {
-		return ErrSum
-	}
-	return nil
-}
-
-func handleCopy(rs io.Reader, base string, digest *Digest) error {
-	return nil
-}
-
-func handleCompare(rs io.Reader, cz Coze, digest *Digest) error {
 	return nil
 }

@@ -45,8 +45,16 @@ func NewClient(addr, alg string) (*Client, error) {
 	return &client, client.init(alg)
 }
 
-func (c *Client) Compare(cz Coze) error {
-	return nil
+func (c *Client) Compare(cz Coze, sum []byte) error {
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, ReqCmp)
+	binary.Write(&buf, binary.BigEndian, cz.Count)
+	binary.Write(&buf, binary.BigEndian, cz.Size)
+	buf.Write(sum)
+	if _, err := io.Copy(c.conn, &buf); err != nil {
+		return err
+	}
+	return c.err()
 }
 
 func (c *Client) Copy(file string, e Entry, sum []byte) error {
@@ -115,7 +123,7 @@ func (c *Client) err() error {
 		return fmt.Errorf("response too short")
 	}
 
-  code := binary.BigEndian.Uint32(buf)
+	code := binary.BigEndian.Uint32(buf)
 	switch str := bytes.Trim(buf[4:n], "\x00"); code {
 	case CodeOk:
 		return nil

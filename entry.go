@@ -20,6 +20,9 @@ func (c *Coze) Equal(other Coze) bool {
 }
 
 func (c *Coze) Update(z float64) {
+	if z <= 0 {
+		return
+	}
 	c.Count++
 	c.Size += z
 }

@@ -72,7 +72,7 @@ func (s *Scanner) Synchronize(client *Client, base, pattern string, sync, verbos
 		return err
 	})
 	if err == nil {
-		err = client.Compare(cz)
+		err = client.Compare(cz, s.digest.Global())
 	}
 	return cz, err
 }
@@ -87,7 +87,7 @@ func (s *Scanner) Transfer(client *Client, base, pattern string, verbose bool) (
 		return client.Copy(file, e, s.digest.Local())
 	})
 	if err == nil {
-		err = client.Compare(cz)
+		err = client.Compare(cz, s.digest.Global())
 	}
 	return cz, err
 }
