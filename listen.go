@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -23,10 +25,11 @@ func runListen(cmd *cli.Command, args []string) error {
 		Addr    string
 		Base    string
 		Clients uint16 `toml:"client"`
-		Certificate struct{
-			Pem string
-			Key string
-		}
+		Cert    struct {
+			Pem  string
+			Key  string
+			Root string
+		} `toml:"certificate"`
 	}{}
 	if err := toml.DecodeFile(cmd.Flag.Arg(0), &cfg); err != nil {
 		return err
@@ -35,8 +38,27 @@ func runListen(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if cfg.Certificate.Pem != "" {
+	defer s.Close()
 
+	if cfg.Cert.Pem != "" {
+		cert, err := tls.LoadX509KeyPair(cfg.Cert.Pem, cfg.Cert.Key)
+		if err != nil {
+			return err
+		}
+		var root *x509.CertPool
+		if cfg.Cert.Root == "" {
+			root, err = x509.SystemCertPool()
+		} else {
+			root = x509.NewCertPool()
+		}
+		if err != nil {
+			return err
+		}
+		c := tls.Config{
+			Certificates: []tls.Certificate{cert},
+			ClientCAs:    root,
+		}
+		s = tls.NewListener(s, &c)
 	}
 	defer s.Close()
 	for {
@@ -47,6 +69,8 @@ func runListen(cmd *cli.Command, args []string) error {
 		h, err := NewHandler(c, cfg.Base)
 		if err == nil {
 			go h.Handle()
+		} else {
+			c.Close()
 		}
 	}
 	return nil
@@ -133,7 +157,45 @@ func (h *Handler) handleCheck(rs io.Reader) (float64, error) {
 }
 
 func (h *Handler) handleCopy(rs io.Reader) (float64, error) {
-	return 0, nil
+	dat := struct {
+		Size float64
+		Sum  []byte
+		Raw  uint16
+		File []byte
+	}{}
+
+	dat.Sum = make([]byte, h.digest.Size())
+	binary.Read(rs, binary.BigEndian, &dat.Size)
+	if _, err := io.ReadFull(rs, dat.Sum); err != nil {
+		return 0, err
+	}
+	binary.Read(rs, binary.BigEndian, &dat.Raw)
+	dat.File = make([]byte, dat.Raw)
+	if _, err := io.ReadFull(rs, dat.File); err != nil {
+		return 0, err
+	}
+
+	file := filepath.Join(h.base, string(dat.File))
+	if err := os.MkdirAll(filepath.Dir(file), 0x755); err != nil {
+		return 0, err
+	}
+	w, err := os.Create(file)
+	if err != nil {
+		return 0, err
+	}
+	defer w.Close()
+
+	n, err := io.CopyN(io.MultiWriter(w, h.digest), rs, int64(dat.Size))
+	if err != nil {
+		return 0, err
+	}
+	if n != int64(dat.Size) {
+		return 0, ErrSize
+	}
+	if !bytes.Equal(dat.Sum, h.digest.Local()) {
+		return 0, ErrSum
+	}
+	return dat.Size, nil
 }
 
 func (h *Handler) handleCompare(rs io.Reader) error {
