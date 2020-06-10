@@ -25,7 +25,7 @@ const (
 )
 
 const (
-	CodeOk byte = iota
+	CodeOk uint32 = iota
 	CodeDigest
 	CodeSize
 	CodeNoent
@@ -111,11 +111,12 @@ func (c *Client) err() error {
 	if err != nil {
 		return err
 	}
-	if n == 0 {
-		return fmt.Errorf("empty response")
+	if n < binary.Size(CodeOk) {
+		return fmt.Errorf("response too short")
 	}
 
-	switch str := bytes.Trim(buf[1:n], "\x00"); buf[0] {
+  code := binary.BigEndian.Uint32(buf)
+	switch str := bytes.Trim(buf[4:n], "\x00"); code {
 	case CodeOk:
 		return nil
 	case CodeSize:

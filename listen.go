@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"os"
@@ -55,7 +54,10 @@ func handle(conn net.Conn, base string) {
 		return
 	}
 
-	rs := bufio.NewReader(conn)
+	var (
+		rs = bufio.NewReader(conn)
+		cz Coze
+	)
 	for {
 		req, err := rs.ReadByte()
 		if err != nil {
@@ -67,7 +69,7 @@ func handle(conn net.Conn, base string) {
 		case ReqCopy:
 			err = handleCopy(rs, base, digest)
 		case ReqCmp:
-			err = handleCompare(rs, digest)
+			err = handleCompare(rs, cz, digest)
 		default:
 			return
 		}
@@ -140,6 +142,6 @@ func handleCopy(rs io.Reader, base string, digest *Digest) error {
 	return nil
 }
 
-func handleCompare(rs io.Reader, digest *Digest) error {
+func handleCompare(rs io.Reader, cz Coze, digest *Digest) error {
 	return nil
 }
