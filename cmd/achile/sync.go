@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/midbel/achile"
 	"github.com/midbel/cli"
 )
 
@@ -16,13 +17,13 @@ func runTransfer(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	client, err := NewClient(cmd.Flag.Arg(0), *algo)
+	client, err := achile.NewClient(cmd.Flag.Arg(0), *algo)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	scan, err := NewScanner(*algo, "")
+	scan, err := achile.NewScanner(*algo, "")
 	if err != nil {
 		return err
 	}
@@ -34,7 +35,7 @@ func runTransfer(cmd *cli.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("%s - %d files %x (%s)\n", formatSize(cz.Size), cz.Count, scan.Checksum(), time.Since(now))
+		fmt.Printf("%s - %d files %x (%s)\n", achile.FormatSize(cz.Size), cz.Count, scan.Checksum(), time.Since(now))
 	}
 	return nil
 }
@@ -49,13 +50,13 @@ func runSync(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	client, err := NewClient(cmd.Flag.Arg(0), *algo)
+	client, err := achile.NewClient(cmd.Flag.Arg(0), *algo)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	scan, err := NewScanner(*algo, "")
+	scan, err := achile.NewScanner(*algo, "")
 	if err != nil {
 		return err
 	}
@@ -66,6 +67,6 @@ func runSync(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s - %d files %x (%s)\n", formatSize(cz.Size), cz.Count, scan.Checksum(), time.Since(now))
+	fmt.Printf("%s - %d files %x (%s)\n", achile.FormatSize(cz.Size), cz.Count, scan.Checksum(), time.Since(now))
 	return nil
 }

@@ -1,8 +1,8 @@
-package main
+package achile
 
 import (
-	"bytes"
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"

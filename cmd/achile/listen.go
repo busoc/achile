@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"net"
 
+	"github.com/midbel/achile"
 	"github.com/midbel/cli"
 	"github.com/midbel/toml"
 )
@@ -58,7 +59,7 @@ func runListen(cmd *cli.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		h, err := NewHandler(c, cfg.Base)
+		h, err := achile.NewHandler(c, cfg.Base)
 		if err == nil {
 			go h.Handle()
 		} else {

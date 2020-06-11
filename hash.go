@@ -1,4 +1,4 @@
-package main
+package achile
 
 import (
 	"crypto/md5"
@@ -9,6 +9,7 @@ import (
 	"hash"
 	"hash/adler32"
 	"hash/fnv"
+	"io"
 	"strings"
 
 	"github.com/midbel/murmur"
@@ -20,6 +21,47 @@ const (
 	Size64  = 8
 	Size128 = 16
 )
+
+type Digest struct {
+	global hash.Hash
+	local  hash.Hash
+	io.Writer
+}
+
+func NewDigest(alg string) (*Digest, error) {
+	var (
+		dgt Digest
+		err error
+	)
+	dgt.global, err = SelectHash(alg)
+	if err != nil {
+		return nil, err
+	}
+	dgt.local, _ = SelectHash(alg)
+	dgt.Writer = io.MultiWriter(dgt.global, dgt.local)
+	return &dgt, nil
+}
+
+func (d *Digest) Local() []byte {
+	return d.local.Sum(nil)
+}
+
+func (d *Digest) Global() []byte {
+	return d.global.Sum(nil)
+}
+
+func (d *Digest) Size() int {
+	return d.global.Size()
+}
+
+func (d *Digest) Reset() {
+	d.local.Reset()
+}
+
+func (d *Digest) ResetAll() {
+	d.local.Reset()
+	d.global.Reset()
+}
 
 func SelectHash(alg string) (hash.Hash, error) {
 	var (

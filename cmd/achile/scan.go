@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/midbel/achile"
 	"github.com/midbel/cli"
 )
 
@@ -17,7 +18,7 @@ func runScan(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	scan, err := NewScanner(*algo, *list)
+	scan, err := achile.NewScanner(*algo, *list)
 	if err != nil {
 		return err
 	}
@@ -28,6 +29,6 @@ func runScan(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s - %d files %x (%s)\n", formatSize(cz.Size), cz.Count, scan.Checksum(), time.Since(now))
+	fmt.Printf("%s - %d files %x (%s)\n", achile.FormatSize(cz.Size), cz.Count, scan.Checksum(), time.Since(now))
 	return nil
 }

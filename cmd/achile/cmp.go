@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/midbel/achile"
 	"github.com/midbel/cli"
 )
 
@@ -16,7 +17,7 @@ func runCompare(cmd *cli.Command, args []string) error {
 	for i := 0; i < len(dirs); i++ {
 		dirs[i] = cmd.Flag.Arg(i + 1)
 	}
-	cmp, err := NewComparer(cmd.Flag.Arg(0))
+	cmp, err := achile.NewComparer(cmd.Flag.Arg(0))
 	if err != nil {
 		return err
 	}
@@ -27,6 +28,6 @@ func runCompare(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s - %d files %x (%s)\n", formatSize(cz.Size), cz.Count, cmp.Checksum(), time.Since(now))
+	fmt.Printf("%s - %d files %x (%s)\n", achile.FormatSize(cz.Size), cz.Count, cmp.Checksum(), time.Since(now))
 	return nil
 }
