@@ -4,35 +4,59 @@ import (
 	"github.com/midbel/cli"
 )
 
+const help = `{{.Name}} provides a set of commands to check the integrity of files
+after a transfer accross the network.
+
+To check the integrity of files, {{.Name}} supports multiple hashing algorithm:
+* MD5
+* SHA family (sha1, sha256, sha512,...)
+* adler32
+* fnv
+* xxHash
+* murmurhash v3
+
+Usage:
+
+  {{.Name}} command [arguments]
+
+The commands are:
+
+{{range .Commands}}{{printf "  %-9s %s" .String .Short}}
+{{end}}
+
+Use {{.Name}} [command] -h for more information about its usage.
+`
+
 func main() {
 	commands := []*cli.Command{
 		{
 			Usage: "scan [-a algorithm] [-p pattern] [-w] [-v] <directory>",
-			Short: "",
+			Short: "hash files found in a given directory",
 			Alias: []string{"walk"},
 			Run:   runScan,
 		},
 		{
 			Usage: "compare [-v] <list> <directory...>",
-			Short: "",
+			Short: "compare files from a list of known hashes",
 			Alias: []string{"cmp"},
 			Run:   runCompare,
 		},
 		{
-			Usage: "sync [-a algorithm] [-p pattern] <host:port> <directory>",
-			Short: "",
-			Run:   runSync,
+			Usage: "check [-a algorithm] [-p pattern] [-t transfer] <host:port> <directory>",
+			Short: "check and compare local files with files on a remote server",
+			Run:   runCheck,
 		},
 		{
-			Usage: "transfer <host:port> <directory...>",
-			Short: "",
+			Usage: "transfer [-a algorithm] [-p pattern] <host:port> <directory...>",
+			Short: "copy local files in given directory to a remote server",
 			Run:   runTransfer,
 		},
 		{
 			Usage: "listen <config>",
-			Short: "",
+			Short: "run a server to verify or copy files from one server to another",
+			Alias: []string{"serve"},
 			Run:   runListen,
 		},
 	}
-	cli.RunAndExit(commands, func() {})
+	cli.RunAndExit(commands, cli.Usage("achile", help, commands))
 }

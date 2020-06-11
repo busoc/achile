@@ -40,12 +40,12 @@ func runTransfer(cmd *cli.Command, args []string) error {
 	return nil
 }
 
-func runSync(cmd *cli.Command, args []string) error {
+func runCheck(cmd *cli.Command, args []string) error {
 	var (
-		pattern = cmd.Flag.String("p", "", "pattern")
-		algo    = cmd.Flag.String("a", "", "algorithm")
-		verbose = cmd.Flag.Bool("v", false, "verbose")
-		copy    = cmd.Flag.Bool("s", false, "synchronize")
+		pattern  = cmd.Flag.String("p", "", "pattern")
+		algo     = cmd.Flag.String("a", "", "algorithm")
+		verbose  = cmd.Flag.Bool("v", false, "verbose")
+		transfer = cmd.Flag.Bool("t", false, "synchronize")
 	)
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
@@ -63,7 +63,7 @@ func runSync(cmd *cli.Command, args []string) error {
 	defer scan.Close()
 
 	now := time.Now()
-	cz, err := scan.Synchronize(client, cmd.Flag.Arg(1), *pattern, *copy, *verbose)
+	cz, err := scan.Synchronize(client, cmd.Flag.Arg(1), *pattern, *transfer, *verbose)
 	if err != nil {
 		return err
 	}

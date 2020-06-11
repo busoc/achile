@@ -134,7 +134,7 @@ func (c *Client) err() error {
 
 	readString := func(r io.Reader) string {
 		var (
-			raw uint16
+			raw  uint16
 			file []byte
 		)
 		binary.Read(r, binary.BigEndian, &raw)
