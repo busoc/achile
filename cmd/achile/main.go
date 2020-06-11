@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+
+	"github.com/midbel/achile"
 	"github.com/midbel/cli"
 )
 
@@ -57,6 +60,23 @@ func main() {
 			Alias: []string{"serve"},
 			Run:   runListen,
 		},
+		{
+			Usage: "list-hash",
+			Short: "print the list of supported hashes",
+			Run:   runList,
+		},
 	}
 	cli.RunAndExit(commands, cli.Usage("achile", help, commands))
+}
+
+func runList(cmd *cli.Command, args []string) error {
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	fmt.Printf("%-6s %s\n", "size", "algorithm")
+	for _, n := range achile.Families {
+		z, _ := achile.SizeHash(n)
+		fmt.Printf("%-6d %s\n", z, n)
+	}
+	return nil
 }

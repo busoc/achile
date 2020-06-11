@@ -10,6 +10,7 @@ import (
 	"hash/adler32"
 	"hash/fnv"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/midbel/murmur"
@@ -21,6 +22,31 @@ const (
 	Size64  = 8
 	Size128 = 16
 )
+
+var Families = []string{
+	"md5",
+	"sha1",
+	"sha256",
+	"sha224",
+	"sha512",
+	"sha384",
+	"xxh32",
+	"xxh64",
+	"adler",
+	"fnv32",
+	"fnv32a",
+	"fnv64",
+	"fnv64a",
+	"fnv128",
+	"fnv128a",
+	"murmur32",
+	"murmur128x86",
+	"murmur128x64",
+}
+
+func init() {
+	sort.Strings(Families)
+}
 
 type Digest struct {
 	global hash.Hash
@@ -149,6 +175,12 @@ func SizeHash(alg string) (int, error) {
 		z = Size32
 	case "xxh64":
 		z = Size64
+	case "murmur32":
+		z = Size32
+	case "murmur128x86":
+		z = Size128
+	case "murmur128x64":
+		z = Size128
 	}
 	return z, err
 }
