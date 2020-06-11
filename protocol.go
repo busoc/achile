@@ -17,7 +17,7 @@ var (
 	ErrMismatch = errors.New("mismatched")
 	ErrFile     = errors.New("no such file")
 	ErrSum      = errors.New("checksum mismatched")
-	ErrSize     = errors.New("file size mismatched")
+	ErrSize     = errors.New("filesize mismatched")
 	ErrAlg      = errors.New("unsupported algorithm")
 )
 
@@ -38,7 +38,8 @@ const (
 const codeLen = 4 //binary.Size(CodeOk)
 
 type Client struct {
-	conn net.Conn
+	conn    net.Conn
+	hashlen int
 }
 
 func NewClient(addr, alg string) (*Client, error) {
@@ -47,6 +48,9 @@ func NewClient(addr, alg string) (*Client, error) {
 		return nil, err
 	}
 	client := Client{conn: c}
+	if client.hashlen, err = SizeHash(alg); err != nil {
+		return nil, err
+	}
 	return &client, client.init(alg)
 }
 
@@ -128,20 +132,53 @@ func (c *Client) err() error {
 		return fmt.Errorf("response too short")
 	}
 
-	code := binary.BigEndian.Uint32(buf)
-	switch str := bytes.Trim(buf[codeLen:n], "\x00"); code {
+	readString := func(r io.Reader) string {
+		var (
+			raw uint16
+			file []byte
+		)
+		binary.Read(r, binary.BigEndian, &raw)
+		file = make([]byte, raw)
+		io.ReadFull(r, file)
+		return string(file)
+	}
+
+	var (
+		code = binary.BigEndian.Uint32(buf)
+		body = bytes.NewReader(buf[codeLen:n])
+	)
+	switch code {
 	case CodeOk:
 		return nil
 	case CodeSize:
-		return fmt.Errorf("%w: invalid size", ErrSize)
+		var (
+			want int64
+			got  int64
+			file string
+		)
+		binary.Read(body, binary.BigEndian, &want)
+		binary.Read(body, binary.BigEndian, &got)
+		file = readString(body)
+		return fmt.Errorf("%w: invalid size %s (%d != %d)", ErrSize, file, want, got)
 	case CodeDigest:
-		return fmt.Errorf("%w: invalid digest %x", ErrMismatch, str)
+		var (
+			want = make([]byte, c.hashlen)
+			got  = make([]byte, c.hashlen)
+			file string
+		)
+		io.ReadFull(body, want)
+		io.ReadFull(body, got)
+		file = readString(body)
+		return fmt.Errorf("%w: invalid digest %s (%x != %x)", ErrSum, file, want, got)
 	case CodeNoent:
-		return fmt.Errorf("%w: no such file on remote %s", ErrFile, str)
+		file := readString(body)
+		return fmt.Errorf("%w: no such file on remote %s", ErrFile, file)
 	case CodeUnexpected:
-		return fmt.Errorf("unexpected error: %s", str)
+		msg := make([]byte, body.Size())
+		io.ReadFull(body, msg)
+		return fmt.Errorf("unexpected error: %s", msg)
 	default:
-		return fmt.Errorf("unexpected error code %02x", buf[0])
+		return fmt.Errorf("unexpected error code %08x", code)
 	}
 }
 
