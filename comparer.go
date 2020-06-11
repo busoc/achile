@@ -41,6 +41,21 @@ func NewComparer(file string) (*Comparer, error) {
 	return &c, nil
 }
 
+func (c *Comparer) List(dirs []string, verbose bool) (Coze, error) {
+	var cz Coze
+	for i := range FetchInfos(c.inner, c.digest.Size()) {
+		fi, found := c.lookupFile(i, dirs)
+		if !found {
+			return cz, fmt.Errorf("%s: no such file", fi.File)
+		}
+		if verbose {
+			fmt.Printf("%-8s  %x  %s\n", FormatSize(fi.Size), c.digest.Local(), fi.File)
+		}
+		cz.Update(fi.Size)
+	}
+	return cz, nil
+}
+
 func (c *Comparer) Compare(dirs []string, verbose bool) (Coze, error) {
 	cz, err := c.compareFiles(dirs, verbose)
 	if err == nil {
