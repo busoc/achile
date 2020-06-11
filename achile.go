@@ -69,6 +69,9 @@ func (s *Scanner) Synchronize(client *Client, base, pattern string, sync, verbos
 		if canCopy(err) {
 			err = client.Copy(file, e, s.digest.Local())
 		}
+		if err == nil && verbose {
+			s.dumpEntry(e)
+		}
 		return err
 	})
 	if err == nil {
