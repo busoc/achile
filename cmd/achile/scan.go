@@ -14,6 +14,7 @@ func runScan(cmd *cli.Command, args []string) error {
 		algo    = cmd.Flag.String("a", "", "algorithm")
 		list    = cmd.Flag.String("w", "", "file")
 		verbose = cmd.Flag.Bool("v", false, "verbose")
+		fullstat = cmd.Flag.Bool("s", false, "show full stat")
 	)
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
@@ -29,6 +30,15 @@ func runScan(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s - %d files %x (%s)\n", achile.FormatSize(cz.Size), cz.Count, scan.Checksum(), time.Since(now))
+	if *fullstat {
+		min, max := cz.Range()
+		fmt.Printf("Files  : %d (%x)\n", cz.Count, scan.Checksum())
+		fmt.Printf("Size   : %s\n", achile.FormatSize(cz.Size))
+		fmt.Printf("Average: %s\n", achile.FormatSize(cz.Avg()))
+		fmt.Printf("Range  : %s - %s\n", achile.FormatSize(min), achile.FormatSize(max))
+		fmt.Printf("Elapsed: %s\n", time.Since(now))
+	} else {
+		fmt.Printf("%s - %d files %x (%s)\n", achile.FormatSize(cz.Size), cz.Count, scan.Checksum(), time.Since(now))
+	}
 	return nil
 }

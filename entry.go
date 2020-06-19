@@ -13,6 +13,9 @@ import (
 type Coze struct {
 	Count uint64
 	Size  float64
+
+	MinSize float64
+	MaxSize float64
 }
 
 func (c *Coze) Equal(other Coze) bool {
@@ -23,8 +26,26 @@ func (c *Coze) Update(z float64) {
 	if z <= 0 {
 		return
 	}
+	if c.Count == 0 || c.MinSize > z {
+		c.MinSize = z
+	}
+	if c.Count == 0 || c.MaxSize < z {
+		c.MaxSize = z;
+	}
 	c.Count++
 	c.Size += z
+
+}
+
+func (c *Coze) Avg() float64 {
+	if c.Count == 0 {
+		return 0
+	}
+	return c.Size / float64(c.Count)
+}
+
+func (c *Coze) Range() (float64, float64) {
+	return c.MinSize, c.MaxSize
 }
 
 type FileInfo struct {
