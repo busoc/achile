@@ -100,7 +100,7 @@ func (c *Comparer) compare(cz Coze) (Coze, error) {
 		return cz, err
 	}
 	if sum := c.digest.Global(); !bytes.Equal(sum, accu) {
-		return z, fmt.Errorf("final checksum mismatchde (%x != %x!)", sum, accu)
+		return z, fmt.Errorf("final checksum mismatched (%x != %x!)", sum, accu)
 	}
 	return z, nil
 }

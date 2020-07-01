@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/binary"
 	"fmt"
 	"hash"
 	"hash/adler32"
@@ -42,6 +43,9 @@ var Families = []string{
 	"murmur32",
 	"murmur128x86",
 	"murmur128x64",
+	"none",
+	"sum32",
+	"sum64",
 }
 
 func init() {
@@ -97,6 +101,12 @@ func SelectHash(alg string) (hash.Hash, error) {
 	switch strings.ToLower(alg) {
 	default:
 		err = fmt.Errorf("unsupported hash algorithm")
+	case "sum32":
+		h = Sum32()
+	case "sum64":
+		h = Sum64()
+	case "none":
+		h = None()
 	case "md5", "":
 		h = md5.New()
 	case "sha1":
@@ -145,6 +155,12 @@ func SizeHash(alg string) (int, error) {
 	switch strings.ToLower(alg) {
 	default:
 		err = fmt.Errorf("unsupported hash algorithm")
+	case "sum32":
+		z = Size32
+	case "sum64":
+		z = Size64
+	case "none":
+		z = Size32
 	case "md5", "":
 		z = md5.Size
 	case "sha1":
@@ -183,4 +199,94 @@ func SizeHash(alg string) (int, error) {
 		z = Size128
 	}
 	return z, err
+}
+
+type none struct {}
+
+func None() hash.Hash {
+	return none{}
+}
+
+func (n none) Reset() {}
+
+func (n none) Write(bs []byte) (int, error) {
+	return len(bs), nil
+}
+
+func (n none) Sum(bs []byte) []byte {
+	return make([]byte, 4)
+}
+
+func (n none) Size() int {
+	return Size32
+}
+
+func (n none) BlockSize() int {
+	return Size32
+}
+
+type sum32 uint32
+
+func Sum32() hash.Hash {
+	var s sum32;
+	s.Reset()
+	return &s
+}
+
+func (s *sum32) Reset() {
+	*s -= *s
+}
+
+func (s *sum32) Write(bs []byte) (int, error) {
+	for _, b := range bs {
+		*s += sum32(b)
+	}
+	return len(bs), nil
+}
+
+func (s *sum32) Sum(bs []byte) []byte {
+	xs := make([]byte, Size32)
+	binary.BigEndian.PutUint32(xs, uint32(*s))
+	return append(bs, xs...)
+}
+
+func (s *sum32) Size() int {
+	return Size32
+}
+
+func (s *sum32) BlockSize() int {
+	return Size32
+}
+
+type sum64 uint64
+
+func Sum64() hash.Hash {
+	var s sum64;
+	s.Reset()
+	return &s
+}
+
+func (s *sum64) Reset() {
+	*s -= *s
+}
+
+func (s *sum64) Write(bs []byte) (int, error) {
+	for _, b := range bs {
+		*s += sum64(b)
+	}
+	return len(bs), nil
+}
+
+func (s *sum64) Sum(bs []byte) []byte {
+	xs := make([]byte, Size64)
+	binary.BigEndian.PutUint64(xs, uint64(*s))
+	return append(bs, xs...)
+}
+
+func (s *sum64) Size() int {
+	return Size64
+}
+
+func (s *sum64) BlockSize() int {
+	return Size64
 }
