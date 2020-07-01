@@ -30,7 +30,7 @@ func (c *Coze) Update(z float64) {
 		c.MinSize = z
 	}
 	if c.Count == 0 || c.MaxSize < z {
-		c.MaxSize = z;
+		c.MaxSize = z
 	}
 	c.Count++
 	c.Size += z

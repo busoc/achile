@@ -10,8 +10,8 @@ import (
 
 func runCompare(cmd *cli.Command, args []string) error {
 	var (
-		list    = cmd.Flag.Bool("l", false, "list")
-		verbose = cmd.Flag.Bool("v", false, "verbose")
+		list     = cmd.Flag.Bool("l", false, "list")
+		verbose  = cmd.Flag.Bool("v", false, "verbose")
 		fullstat = cmd.Flag.Bool("s", false, "show full stats")
 	)
 	if err := cmd.Flag.Parse(args); err != nil {
@@ -29,7 +29,7 @@ func runCompare(cmd *cli.Command, args []string) error {
 
 	var (
 		now = time.Now()
-		cz achile.Coze
+		cz  achile.Coze
 	)
 	if *list {
 		cz, err = cmp.List(dirs, *verbose)

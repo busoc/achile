@@ -10,10 +10,10 @@ import (
 
 func runScan(cmd *cli.Command, args []string) error {
 	var (
-		pattern = cmd.Flag.String("p", "", "pattern")
-		algo    = cmd.Flag.String("a", "", "algorithm")
-		list    = cmd.Flag.String("w", "", "file")
-		verbose = cmd.Flag.Bool("v", false, "verbose")
+		pattern  = cmd.Flag.String("p", "", "pattern")
+		algo     = cmd.Flag.String("a", "", "algorithm")
+		list     = cmd.Flag.String("w", "", "file")
+		verbose  = cmd.Flag.Bool("v", false, "verbose")
 		fullstat = cmd.Flag.Bool("s", false, "show full stat")
 	)
 	if err := cmd.Flag.Parse(args); err != nil {

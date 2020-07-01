@@ -201,7 +201,7 @@ func SizeHash(alg string) (int, error) {
 	return z, err
 }
 
-type none struct {}
+type none struct{}
 
 func None() hash.Hash {
 	return none{}
@@ -228,7 +228,7 @@ func (n none) BlockSize() int {
 type sum32 uint32
 
 func Sum32() hash.Hash {
-	var s sum32;
+	var s sum32
 	s.Reset()
 	return &s
 }
@@ -261,7 +261,7 @@ func (s *sum32) BlockSize() int {
 type sum64 uint64
 
 func Sum64() hash.Hash {
-	var s sum64;
+	var s sum64
 	s.Reset()
 	return &s
 }
