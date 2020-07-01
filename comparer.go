@@ -52,6 +52,9 @@ func NewComparer(file string) (*Comparer, error) {
 }
 
 func (c *Comparer) List(dirs []string, verbose bool) (Coze, error) {
+	for i := range dirs {
+		dirs[i] = filepath.Clean(dirs[i])
+	}
 	var cz Coze
 	for i := range FetchInfos(c.inner, c.digest.Size()) {
 		fi, found := c.lookupFile(i, dirs)
@@ -67,6 +70,9 @@ func (c *Comparer) List(dirs []string, verbose bool) (Coze, error) {
 }
 
 func (c *Comparer) Compare(dirs []string, verbose bool) (Coze, error) {
+	for i := range dirs {
+		dirs[i] = filepath.Clean(dirs[i])
+	}
 	cz, err := c.compareFiles(dirs, verbose)
 	if err == nil {
 		cz, err = c.compare(cz)
