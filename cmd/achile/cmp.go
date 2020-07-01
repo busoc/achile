@@ -10,7 +10,9 @@ import (
 
 func runCompare(cmd *cli.Command, args []string) error {
 	var (
-		list     = cmd.Flag.Bool("l", false, "list")
+		list = cmd.Flag.Bool("l", false, "list")
+		// pretty   = cmd.Flag.Bool("p", false, "pretty size")
+		// abort    = cmd.Flag.Bool("e", false, "")
 		verbose  = cmd.Flag.Bool("v", false, "verbose")
 		fullstat = cmd.Flag.Bool("s", false, "show full stats")
 	)

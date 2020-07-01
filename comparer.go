@@ -20,6 +20,9 @@ const (
 type Comparer struct {
 	digest *Digest
 
+	pretty  bool
+	verbose bool
+
 	inner *bufio.Reader
 	io.Closer
 }

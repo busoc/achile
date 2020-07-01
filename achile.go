@@ -8,7 +8,38 @@ import (
 	"path/filepath"
 
 	"github.com/midbel/glob"
+	"github.com/midbel/sizefmt"
 )
+
+type setter interface {
+	setVerbose(bool)
+	setPretty(bool)
+	setError(bool)
+}
+
+type Option func(setter)
+
+func WithVerbose(verbose bool) Option {
+	return func(s setter) {
+		s.setVerbose(verbose)
+	}
+}
+
+func WithPretty(pretty bool) Option {
+	return func(s setter) {
+		s.setPretty(pretty)
+	}
+}
+
+func WithError(err bool) Option {
+	return func(s setter) {
+		s.setError(err)
+	}
+}
+
+func FormatSize(z float64) string {
+	return sizefmt.FormatIEC(z, false)
+}
 
 type Coze struct {
 	Count uint64
