@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/busoc/achile"
@@ -10,8 +9,8 @@ import (
 
 func runCompare(cmd *cli.Command, args []string) error {
 	var (
-		list = cmd.Flag.Bool("l", false, "list")
-		// pretty   = cmd.Flag.Bool("p", false, "pretty size")
+		list   = cmd.Flag.Bool("l", false, "list")
+		pretty = cmd.Flag.Bool("y", false, "pretty size")
 		// abort    = cmd.Flag.Bool("e", false, "")
 		verbose  = cmd.Flag.Bool("v", false, "verbose")
 		fullstat = cmd.Flag.Bool("s", false, "show full stats")
@@ -23,7 +22,11 @@ func runCompare(cmd *cli.Command, args []string) error {
 	for i := 0; i < len(dirs); i++ {
 		dirs[i] = cmd.Flag.Arg(i + 1)
 	}
-	cmp, err := achile.NewComparer(cmd.Flag.Arg(0))
+	options := []achile.Option{
+		achile.WithPretty(*pretty),
+		achile.WithVerbose(*verbose),
+	}
+	cmp, err := achile.NewComparer(cmd.Flag.Arg(0), options...)
 	if err != nil {
 		return err
 	}
@@ -34,19 +37,14 @@ func runCompare(cmd *cli.Command, args []string) error {
 		cz  achile.Coze
 	)
 	if *list {
-		cz, err = cmp.List(dirs, *verbose)
+		cz, err = cmp.List(dirs)
 	} else {
-		cz, err = cmp.Compare(dirs, *verbose)
+		cz, err = cmp.Compare(dirs)
 	}
-	if *fullstat {
-		min, max := cz.Range()
-		fmt.Printf("Files  : %d (%x)\n", cz.Count, cmp.Checksum())
-		fmt.Printf("Size   : %s\n", achile.FormatSize(cz.Size))
-		fmt.Printf("Average: %s\n", achile.FormatSize(cz.Avg()))
-		fmt.Printf("Range  : %s - %s\n", achile.FormatSize(min), achile.FormatSize(max))
-		fmt.Printf("Elapsed: %s\n", time.Since(now))
+	if elapsed := time.Since(now); *fullstat {
+		Full(cmp, cz, elapsed, *pretty)
 	} else {
-		fmt.Printf("%s - %d files %x (%s)\n", achile.FormatSize(cz.Size), cz.Count, cmp.Checksum(), time.Since(now))
+		Short(cmp, cz, elapsed, *pretty)
 	}
 	return err
 }

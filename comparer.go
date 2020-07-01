@@ -27,7 +27,7 @@ type Comparer struct {
 	io.Closer
 }
 
-func NewComparer(file string) (*Comparer, error) {
+func NewComparer(file string, opts ...Option) (*Comparer, error) {
 	r, err := os.Open(file)
 	if err != nil {
 		return nil, err
@@ -48,10 +48,14 @@ func NewComparer(file string) (*Comparer, error) {
 	c.inner = bufio.NewReader(r)
 	c.Closer = r
 
+	for _, o := range opts {
+		o(&c)
+	}
+
 	return &c, nil
 }
 
-func (c *Comparer) List(dirs []string, verbose bool) (Coze, error) {
+func (c *Comparer) List(dirs []string) (Coze, error) {
 	for i := range dirs {
 		dirs[i] = filepath.Clean(dirs[i])
 	}
@@ -61,21 +65,25 @@ func (c *Comparer) List(dirs []string, verbose bool) (Coze, error) {
 		if !found {
 			return cz, fmt.Errorf("%s: no such file", fi.File)
 		}
-		if verbose {
-			fmt.Printf("%-8s  %x  %s\n", FormatSize(fi.Size), c.digest.Local(), fi.File)
+		if c.verbose {
+			if c.pretty {
+				fmt.Printf("%-8s  %x  %s\n", FormatSize(fi.Size), c.digest.Local(), fi.File)
+			} else {
+				fmt.Printf("%-12d  %x  %s\n", int64(fi.Size), c.digest.Local(), fi.File)
+			}
 		}
 		cz.Update(fi.Size)
 	}
 	return cz, nil
 }
 
-func (c *Comparer) Compare(dirs []string, verbose bool) (Coze, error) {
+func (c *Comparer) Compare(dirs []string) (Coze, error) {
 	for i := range dirs {
 		dirs[i] = filepath.Clean(dirs[i])
 	}
-	cz, err := c.compareFiles(dirs, verbose)
+	cz, err := c.compareFiles(dirs)
 	if err == nil {
-		cz, err = c.compare(cz)
+		_, err = c.compare(cz)
 	}
 	return cz, err
 }
@@ -84,7 +92,7 @@ func (c *Comparer) Checksum() []byte {
 	return c.digest.Global()
 }
 
-func (c *Comparer) compareFiles(dirs []string, verbose bool) (Coze, error) {
+func (c *Comparer) compareFiles(dirs []string) (Coze, error) {
 	var (
 		cz Coze
 		st byte
@@ -100,8 +108,12 @@ func (c *Comparer) compareFiles(dirs []string, verbose bool) (Coze, error) {
 		} else {
 			st = Deleted
 		}
-		if verbose {
-			fmt.Printf("%c  %-8s  %x  %s\n", st, FormatSize(fi.Size), c.digest.Local(), fi.File)
+		if c.verbose {
+			if c.pretty {
+				fmt.Printf("%c  %-8s  %x  %s\n", st, FormatSize(fi.Size), c.digest.Local(), fi.File)
+			} else {
+				fmt.Printf("%c  %-12d  %x  %s\n", st, int64(fi.Size), c.digest.Local(), fi.File)
+			}
 		}
 		c.digest.Reset()
 	}
@@ -157,3 +169,9 @@ func (c *Comparer) digestFile(fi FileInfo) error {
 	}
 	return nil
 }
+
+func (c *Comparer) setVerbose(v bool) { c.verbose = v }
+
+func (c *Comparer) setPretty(v bool) { c.pretty = v }
+
+func (c *Comparer) setError(v bool) {}

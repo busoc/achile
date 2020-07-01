@@ -16,10 +16,13 @@ type Scanner struct {
 	closer io.Closer
 	inner  *bufio.Writer
 
+	verbose bool
+	pretty  bool
+
 	digest *Digest
 }
 
-func NewScanner(alg, list string) (*Scanner, error) {
+func NewScanner(alg, list string, opts ...Option) (*Scanner, error) {
 	var (
 		s Scanner
 		w = ioutil.Discard
@@ -43,6 +46,11 @@ func NewScanner(alg, list string) (*Scanner, error) {
 	if _, err := s.inner.Write(buf); err != nil {
 		return nil, err
 	}
+
+	for _, o := range opts {
+		o(&s)
+	}
+
 	return &s, nil
 }
 
@@ -95,13 +103,13 @@ func (s *Scanner) Transfer(client *Client, base, pattern string, verbose bool) (
 	return cz, err
 }
 
-func (s *Scanner) Scan(base, pattern string, verbose bool) (Coze, error) {
+func (s *Scanner) Scan(base, pattern string) (Coze, error) {
 	base = filepath.Clean(base)
 	cz, err := s.scanDirectory(base, pattern, func(e Entry) error {
 		if err := e.Compute(s.digest); err != nil {
 			return err
 		}
-		if verbose {
+		if s.verbose {
 			s.dumpEntry(e)
 		}
 		return s.dumpCurrentState(e, base)
@@ -137,7 +145,11 @@ func (s *Scanner) scanDirectory(base, pattern string, fn func(e Entry) error) (C
 }
 
 func (s *Scanner) dumpEntry(e Entry) {
-	fmt.Printf("%-8s  %x  %s\n", FormatSize(e.Size), s.digest.Local(), e.File)
+	if s.pretty {
+		fmt.Printf("%-8s  %x  %s\n", FormatSize(e.Size), s.digest.Local(), e.File)
+	} else {
+		fmt.Printf("%-12d  %x  %s\n", int64(e.Size), s.digest.Local(), e.File)
+	}
 }
 
 func (s *Scanner) dumpFinalState(cz Coze) error {
@@ -160,3 +172,9 @@ func (s *Scanner) dumpCurrentState(e Entry, base string) error {
 	_, err := s.inner.Write(raw)
 	return err
 }
+
+func (s *Scanner) setVerbose(v bool) { s.verbose = v }
+
+func (s *Scanner) setPretty(v bool) { s.pretty = v }
+
+func (s *Scanner) setError(v bool) {}

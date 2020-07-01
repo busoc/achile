@@ -106,9 +106,9 @@ func SelectHash(alg string) (hash.Hash, error) {
 		h = Sum32()
 	case "sum64":
 		h = Sum64()
-	case "none":
+	case "none", "":
 		h = None()
-	case "md5", "":
+	case "md5":
 		h = md5.New()
 	case "sha1":
 		h = sha1.New()
@@ -160,9 +160,9 @@ func SizeHash(alg string) (int, error) {
 		z = Size32
 	case "sum64":
 		z = Size64
-	case "none":
+	case "none", "":
 		z = Size32
-	case "md5", "":
+	case "md5":
 		z = md5.Size
 	case "sha1":
 		z = sha1.Size
