@@ -146,8 +146,5 @@ func (c *Comparer) digestFile(fi FileInfo) error {
 	if sum := c.digest.Local(); !bytes.Equal(fi.Curr, sum) {
 		return fmt.Errorf("%s: checksum mismatched (%x != %x)!", fi.File, fi.Curr, sum)
 	}
-	if sum := c.digest.Global(); !bytes.Equal(fi.Accu, sum) {
-		return fmt.Errorf("%s: checksum mismatched (%x != %x)!", fi.File, fi.Accu, sum)
-	}
 	return nil
 }
