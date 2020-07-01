@@ -36,9 +36,6 @@ func runCompare(cmd *cli.Command, args []string) error {
 	} else {
 		cz, err = cmp.Compare(dirs, *verbose)
 	}
-	if err != nil {
-		return err
-	}
 	if *fullstat {
 		min, max := cz.Range()
 		fmt.Printf("Files  : %d (%x)\n", cz.Count, cmp.Checksum())
@@ -49,5 +46,5 @@ func runCompare(cmd *cli.Command, args []string) error {
 	} else {
 		fmt.Printf("%s - %d files %x (%s)\n", achile.FormatSize(cz.Size), cz.Count, cmp.Checksum(), time.Since(now))
 	}
-	return nil
+	return err
 }

@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -56,6 +57,7 @@ func (s *Scanner) Synchronize(client *Client, base, pattern string, sync, verbos
 		}
 		return errors.Is(err, ErrFile) || errors.Is(err, ErrSum) || errors.Is(err, ErrSize)
 	}
+	base = filepath.Clean(base)
 	cz, err := s.scanDirectory(base, pattern, func(e Entry) error {
 		file := e.File
 		if err := e.Compute(s.digest); err != nil {
@@ -78,6 +80,7 @@ func (s *Scanner) Synchronize(client *Client, base, pattern string, sync, verbos
 }
 
 func (s *Scanner) Transfer(client *Client, base, pattern string, verbose bool) (Coze, error) {
+	base = filepath.Clean(base)
 	cz, err := s.scanDirectory(base, pattern, func(e Entry) error {
 		if err := e.Compute(s.digest); err != nil {
 			return err
@@ -93,6 +96,7 @@ func (s *Scanner) Transfer(client *Client, base, pattern string, verbose bool) (
 }
 
 func (s *Scanner) Scan(base, pattern string, verbose bool) (Coze, error) {
+	base = filepath.Clean(base)
 	cz, err := s.scanDirectory(base, pattern, func(e Entry) error {
 		if err := e.Compute(s.digest); err != nil {
 			return err

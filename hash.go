@@ -34,6 +34,7 @@ var Families = []string{
 	"xxh32",
 	"xxh64",
 	"adler",
+	"adler32",
 	"fnv32",
 	"fnv32a",
 	"fnv64",
@@ -119,7 +120,7 @@ func SelectHash(alg string) (hash.Hash, error) {
 		h = sha512.New()
 	case "sha384":
 		h = sha512.New384()
-	case "adler":
+	case "adler", "adler32":
 		h = adler32.New()
 	case "fnv32":
 		h = fnv.New32()
@@ -173,7 +174,7 @@ func SizeHash(alg string) (int, error) {
 		z = sha512.Size
 	case "sha384":
 		z = sha512.Size384
-	case "adler":
+	case "adler", "adler32":
 		z = Size32
 	case "fnv32":
 		z = Size32

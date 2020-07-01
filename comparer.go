@@ -10,6 +10,13 @@ import (
 	"path/filepath"
 )
 
+const (
+	Deleted   = 'D'
+	Identical = 'I'
+	Modified  = 'M'
+	Added     = 'A'
+)
+
 type Comparer struct {
 	digest *Digest
 
@@ -69,19 +76,24 @@ func (c *Comparer) Checksum() []byte {
 }
 
 func (c *Comparer) compareFiles(dirs []string, verbose bool) (Coze, error) {
-	var cz Coze
+	var (
+		cz Coze
+		st byte
+	)
 	for i := range FetchInfos(c.inner, c.digest.Size()) {
 		fi, found := c.lookupFile(i, dirs)
-		if !found {
-			break
-		}
-		if err := c.digestFile(fi); err != nil {
-			return cz, err
+		if found {
+			st = Identical
+			if err := c.digestFile(fi); err != nil {
+				st = Modified
+			}
+			cz.Update(fi.Size)
+		} else {
+			st = Deleted
 		}
 		if verbose {
-			fmt.Printf("%-8s  %x  %s\n", FormatSize(fi.Size), c.digest.Local(), fi.File)
+			fmt.Printf("%c  %-8s  %x  %s\n", st, FormatSize(fi.Size), c.digest.Local(), fi.File)
 		}
-		cz.Update(fi.Size)
 		c.digest.Reset()
 	}
 	return cz, nil
