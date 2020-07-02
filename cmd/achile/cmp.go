@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"time"
 
 	"github.com/busoc/achile"
@@ -42,7 +43,7 @@ func runCompare(cmd *cli.Command, args []string) error {
 		cz, err = cmp.Compare(dirs)
 	}
 	if elapsed := time.Since(now); *fullstat {
-		Full(cmp, cz, elapsed, *pretty)
+		Full(cmp, cz, strings.Join(dirs, ", "), elapsed, *pretty)
 	} else {
 		Short(cmp, cz, elapsed, *pretty)
 	}

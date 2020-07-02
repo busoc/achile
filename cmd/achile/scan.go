@@ -35,7 +35,7 @@ func runScan(cmd *cli.Command, args []string) error {
 		return err
 	}
 	if elapsed := time.Since(now); *fullstat {
-		Full(scan, cz, elapsed, *pretty)
+		Full(scan, cz, cmd.Flag.Arg(0), elapsed, *pretty)
 	} else {
 		Short(scan, cz, elapsed, *pretty)
 	}
