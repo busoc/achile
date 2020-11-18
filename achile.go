@@ -79,6 +79,21 @@ func (c *Coze) Range() (float64, float64) {
 	return c.MinSize, c.MaxSize
 }
 
+func (c *Coze) Merge(other Coze) Coze {
+	if c == nil {
+		return other
+	}
+	c.Count += other.Count
+	c.Size += other.Size
+	if c.MinSize > 0 && other.MinSize < c.MinSize {
+		c.MinSize = other.MinSize
+	}
+	if c.MaxSize > 0 && other.MaxSize > c.MaxSize {
+		c.MaxSize = other.MaxSize
+	}
+	return *c
+}
+
 type FileInfo struct {
 	Size float64
 	Accu []byte

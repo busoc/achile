@@ -33,7 +33,7 @@ Use {{.Name}} [command] -h for more information about its usage.
 func main() {
 	commands := []*cli.Command{
 		{
-			Usage: "scan [-a algorithm] [-p pattern] [-w] [-v] <directory>",
+			Usage: "scan [-a algorithm] [-p pattern] [-w file] [-v verbose] [-y pretty] [-s full stats] <directory>",
 			Short: "hash files found in a given directory",
 			Alias: []string{"walk"},
 			Run:   runScan,

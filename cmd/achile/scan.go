@@ -29,15 +29,29 @@ func runScan(cmd *cli.Command, args []string) error {
 	}
 	defer scan.Close()
 
-	now := time.Now()
-	cz, err := scan.Scan(cmd.Flag.Arg(0), *pattern)
-	if err != nil {
-		return err
+	var (
+		all   achile.Coze
+		begin = time.Now()
+	)
+	for _, a := range cmd.Flag.Args() {
+		now := time.Now()
+		cz, err := scan.Scan(a, *pattern)
+		if err != nil {
+			return err
+		}
+		if elapsed := time.Since(now); *fullstat {
+			Full(scan, cz, a, elapsed, *pretty)
+		} else {
+			Short(scan, cz, a, elapsed, *pretty)
+		}
+		all = all.Merge(cz)
 	}
-	if elapsed := time.Since(now); *fullstat {
-		Full(scan, cz, cmd.Flag.Arg(0), elapsed, *pretty)
-	} else {
-		Short(scan, cz, elapsed, *pretty)
+	if cmd.Flag.NArg() > 1 {
+		if elapsed := time.Since(begin); *fullstat {
+			Full(scan, all, "", elapsed, *pretty)
+		} else {
+			Short(scan, all, "", elapsed, *pretty)
+		}
 	}
 	return nil
 }

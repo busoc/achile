@@ -42,10 +42,10 @@ func runCompare(cmd *cli.Command, args []string) error {
 	} else {
 		cz, err = cmp.Compare(dirs)
 	}
-	if elapsed := time.Since(now); *fullstat {
-		Full(cmp, cz, strings.Join(dirs, ", "), elapsed, *pretty)
+	if elapsed, dir := time.Since(now), strings.Join(dirs, ", "); *fullstat {
+		Full(cmp, cz, dir, elapsed, *pretty)
 	} else {
-		Short(cmp, cz, elapsed, *pretty)
+		Short(cmp, cz, dir, elapsed, *pretty)
 	}
 	return err
 }
