@@ -15,6 +15,7 @@ func runScan(cmd *cli.Command, args []string) error {
 		verbose  = cmd.Flag.Bool("v", false, "verbose")
 		pretty   = cmd.Flag.Bool("y", false, "pretty size")
 		fullstat = cmd.Flag.Bool("s", false, "show full stat")
+		middle   = cmd.Flag.Bool("m", false, "show intermediary results")
 		zeros    = cmd.Flag.Bool("z", false, "keep results from empty directory")
 	)
 	if err := cmd.Flag.Parse(args); err != nil {
@@ -43,10 +44,12 @@ func runScan(cmd *cli.Command, args []string) error {
 		if !*zeros && cz.Count == 0 {
 			continue
 		}
-		if elapsed := time.Since(now); *fullstat {
-			Full(scan, cz, a, elapsed, *pretty)
-		} else {
-			Short(scan, cz, a, elapsed, *pretty)
+		if *middle {
+			if elapsed := time.Since(now); *fullstat {
+				Full(scan, cz, a, elapsed, *pretty)
+			} else {
+				Short(scan, cz, a, elapsed, *pretty)
+			}
 		}
 		all = all.Merge(cz)
 	}
