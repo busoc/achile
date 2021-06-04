@@ -1,0 +1,12 @@
+github.com/midbel/cli v0.0.0-20201124093822-1428367b5433 h1:CPfdRk6zXeL5whsIYl8zrH8YsoyfX/kPQX37RPEWO6M=
+github.com/midbel/cli v0.0.0-20201124093822-1428367b5433/go.mod h1:Hni7bX9GqbxnA4it2s21XvfAYUs8Ch5cnc3UObr4NqE=
+github.com/midbel/glob v0.0.0-20200504065619-f41a2251120c h1:fVAW6Sab3JTShym/eVYmgczIyhBsb5KGp/ykndV8Hf0=
+github.com/midbel/glob v0.0.0-20200504065619-f41a2251120c/go.mod h1:Pf25vk404wNUdiDz8wsZrHeCnPgbeylo6n4voQ59sTs=
+github.com/midbel/murmur v0.0.0-20200608194920-d1dfa46154d6 h1:8S2fATRcgRW55wch8BTOJXrjN1bC5Kq3VY4VAiho1mU=
+github.com/midbel/murmur v0.0.0-20200608194920-d1dfa46154d6/go.mod h1:IR88NAdQ0o0etuxk2YRnmuhMfBx001R9F5k/X95yhvc=
+github.com/midbel/sizefmt v0.1.0 h1:IExuyO5Tw0nfiO4Py/pFTUIQc+HrKDYckasFZnxhadw=
+github.com/midbel/sizefmt v0.1.0/go.mod h1:ohilF2Oo6tC46DAYWboyuSUgJxDb1b2+x/rewBxKbAE=
+github.com/midbel/toml v1.0.1 h1:Va/vbvvo+ic6Zc9J8tD19jRZzjxwCxCCt5QzZAmf7xM=
+github.com/midbel/toml v1.0.1/go.mod h1:+sjz9eF3MUm1viemJC2sOXFVLrtmkWunF6rmX1zDKM0=
+github.com/midbel/xxh v0.0.0-20200611170521-8216ee058bc7 h1:UhDI0Q0enIRAYaQXjLRmlkOpYPPAkFX3QpkLLlN65YI=
+github.com/midbel/xxh v0.0.0-20200611170521-8216ee058bc7/go.mod h1:+WNtrCZLYEO+2kqw/lyISsnEuDiPYKudnq51PEACmZI=
