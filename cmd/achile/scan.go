@@ -44,7 +44,7 @@ func runScan(cmd *cli.Command, args []string) error {
 		if !*zeros && cz.Count == 0 {
 			continue
 		}
-		if *middle {
+		if (*middle || *fullstat) {
 			if elapsed := time.Since(now); *fullstat {
 				Full(scan, cz, a, elapsed, *pretty)
 			} else {
