@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/busoc/achile"
-	"github.com/midbel/cli"
+	"github.com/busoc/cli"
 )
 
 const help = `{{.Name}} provides a set of commands to check the integrity of files
