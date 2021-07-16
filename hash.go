@@ -14,8 +14,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/midbel/murmur"
-	"github.com/midbel/xxh"
+	"github.com/busoc/murmur"
+	"github.com/busoc/xxh"
 )
 
 const (
