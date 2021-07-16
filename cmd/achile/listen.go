@@ -6,8 +6,8 @@ import (
 	"net"
 
 	"github.com/busoc/achile"
-	"github.com/midbel/cli"
-	"github.com/midbel/toml"
+	"github.com/busoc/cli"
+	"github.com/busoc/toml"
 )
 
 func runListen(cmd *cli.Command, args []string) error {
