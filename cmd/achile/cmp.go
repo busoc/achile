@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/busoc/achile"
-	"github.com/midbel/cli"
+	"github.com/busoc/cli"
 )
 
 func runCompare(cmd *cli.Command, args []string) error {
