@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/midbel/glob"
-	"github.com/midbel/sizefmt"
+	"github.com/busoc/glob"
+	"github.com/busoc/sizefmt"
 )
 
 type setter interface {
